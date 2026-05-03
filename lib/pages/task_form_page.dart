@@ -1,0 +1,347 @@
+import 'package:flutter/material.dart';
+
+import '../models/task.dart';
+import '../theme/app_colors.dart';
+
+class TaskFormPage extends StatefulWidget {
+  const TaskFormPage({super.key, required this.categories, this.task});
+
+  final List<String> categories;
+  final Task? task;
+
+  @override
+  State<TaskFormPage> createState() => _TaskFormPageState();
+}
+
+class _TaskFormPageState extends State<TaskFormPage> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _titleController;
+  late final TextEditingController _noteController;
+  late final TextEditingController _newCategoryController;
+  late final List<String> _categories;
+  late String _category;
+  bool _showNewCategoryField = false;
+
+  bool get _isEditing => widget.task != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.task?.title ?? '');
+    _noteController = TextEditingController(text: widget.task?.note ?? '');
+    _newCategoryController = TextEditingController();
+    _categories = List<String>.from(widget.categories);
+    _category = widget.task?.category ?? _categories.first;
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _noteController.dispose();
+    _newCategoryController.dispose();
+    super.dispose();
+  }
+
+  void _addCategory() {
+    final newCategory = _newCategoryController.text.trim();
+    if (newCategory.isEmpty) return;
+
+    final exists = _categories.any(
+      (category) => category.toLowerCase() == newCategory.toLowerCase(),
+    );
+
+    setState(() {
+      if (!exists) {
+        _categories.add(newCategory);
+      }
+      _category = exists
+          ? _categories.firstWhere(
+              (category) => category.toLowerCase() == newCategory.toLowerCase(),
+            )
+          : newCategory;
+      _newCategoryController.clear();
+      _showNewCategoryField = false;
+    });
+  }
+
+  void _saveTask() {
+    if (!_formKey.currentState!.validate()) return;
+
+    Navigator.of(context).pop(
+      TaskFormResult(
+        title: _titleController.text.trim(),
+        category: _category,
+        note: _noteController.text.trim(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    IconButton.filled(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.white,
+                        foregroundColor: AppColors.forest,
+                      ),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _isEditing ? 'Edit Task' : 'Add Task',
+                      style: const TextStyle(
+                        color: AppColors.ink,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const Spacer(),
+                    const SizedBox(width: 48),
+                  ],
+                ),
+                const SizedBox(height: 26),
+                Text(
+                  _isEditing ? 'Perbarui tugasmu' : 'Buat tugas baru',
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Tulis jelas, pilih kategori, lalu simpan supaya rencana hari ini lebih tertata.',
+                  style: TextStyle(
+                    color: AppColors.muted,
+                    height: 1.45,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 28),
+                FormCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const FieldLabel(label: 'Judul tugas'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _titleController,
+                        textInputAction: TextInputAction.next,
+                        decoration: _inputDecoration(
+                          hint: 'Contoh: Kerjakan PR Bahasa Inggris',
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Judul tugas wajib diisi';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      const FieldLabel(label: 'Kategori'),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        initialValue: _category,
+                        decoration: _inputDecoration(hint: 'Pilih kategori'),
+                        borderRadius: BorderRadius.circular(18),
+                        dropdownColor: AppColors.white,
+                        items: _categories
+                            .map(
+                              (category) => DropdownMenuItem(
+                                value: category,
+                                child: Text(category),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() {
+                            _category = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _showNewCategoryField = !_showNewCategoryField;
+                            });
+                          },
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.olive,
+                            padding: EdgeInsets.zero,
+                          ),
+                          icon: Icon(
+                            _showNewCategoryField
+                                ? Icons.close_rounded
+                                : Icons.add_rounded,
+                            size: 18,
+                          ),
+                          label: Text(
+                            _showNewCategoryField
+                                ? 'Batal tambah kategori'
+                                : 'Tambah kategori baru',
+                            style: const TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ),
+                      if (_showNewCategoryField) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _newCategoryController,
+                                textInputAction: TextInputAction.done,
+                                decoration: _inputDecoration(
+                                  hint: 'Contoh: Organisasi',
+                                ),
+                                onFieldSubmitted: (_) => _addCategory(),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            SizedBox(
+                              height: 54,
+                              child: FilledButton(
+                                onPressed: _addCategory,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AppColors.olive,
+                                  foregroundColor: AppColors.cream,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Pakai',
+                                  style: TextStyle(fontWeight: FontWeight.w900),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      const FieldLabel(label: 'Catatan'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _noteController,
+                        minLines: 4,
+                        maxLines: 5,
+                        decoration: _inputDecoration(
+                          hint: 'Tambahkan detail kecil agar mudah dikerjakan',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: FilledButton.icon(
+                    onPressed: _saveTask,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.forest,
+                      foregroundColor: AppColors.cream,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    icon: const Icon(Icons.check_rounded),
+                    label: Text(
+                      _isEditing ? 'Simpan Perubahan' : 'Tambah Tugas',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({required String hint}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFFAAA79F)),
+      filled: true,
+      fillColor: AppColors.cream,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(color: AppColors.line),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(color: AppColors.olive, width: 1.4),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(color: Color(0xFFC65F58)),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(color: Color(0xFFC65F58), width: 1.4),
+      ),
+    );
+  }
+}
+
+class FormCard extends StatelessWidget {
+  const FormCard({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: AppColors.line),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x165B4734),
+            blurRadius: 22,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class FieldLabel extends StatelessWidget {
+  const FieldLabel({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w900),
+    );
+  }
+}

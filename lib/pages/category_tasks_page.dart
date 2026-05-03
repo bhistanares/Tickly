@@ -1,0 +1,325 @@
+import 'package:flutter/material.dart';
+
+import '../models/task.dart';
+import '../theme/app_colors.dart';
+
+class CategoryTasksPage extends StatefulWidget {
+  const CategoryTasksPage({
+    super.key,
+    required this.category,
+    required this.tasks,
+    required this.onToggle,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final String category;
+  final List<Task> tasks;
+  final ValueChanged<Task> onToggle;
+  final Future<void> Function(Task task) onEdit;
+  final ValueChanged<Task> onDelete;
+
+  @override
+  State<CategoryTasksPage> createState() => _CategoryTasksPageState();
+}
+
+class TaskTile extends StatelessWidget {
+  const TaskTile({
+    super.key,
+    required this.task,
+    required this.onToggle,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final Task task;
+  final VoidCallback onToggle;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: task.isDone ? AppColors.sage : AppColors.line,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x145B4734),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: onToggle,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 28,
+              height: 28,
+              margin: const EdgeInsets.only(top: 2),
+              decoration: BoxDecoration(
+                color: task.isDone ? AppColors.olive : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: task.isDone ? AppColors.olive : AppColors.line,
+                  width: 2,
+                ),
+              ),
+              child: task.isDone
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 18,
+                      color: AppColors.cream,
+                    )
+                  : null,
+            ),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        task.title,
+                        style: TextStyle(
+                          color: task.isDone ? AppColors.muted : AppColors.ink,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          decoration: task.isDone
+                              ? TextDecoration.lineThrough
+                              : TextDecoration.none,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (task.note.trim().isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    task.note,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: task.isDone
+                          ? AppColors.muted.withValues(alpha: 0.72)
+                          : AppColors.muted,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.sage.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    task.category,
+                    style: const TextStyle(
+                      color: AppColors.forest,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          PopupMenuButton<String>(
+            color: AppColors.white,
+            icon: const Icon(Icons.more_vert_rounded, color: AppColors.muted),
+            onSelected: (value) {
+              if (value == 'edit') onEdit();
+              if (value == 'delete') onDelete();
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_rounded, size: 18),
+                    SizedBox(width: 10),
+                    Text('Edit'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_rounded, size: 18),
+                    SizedBox(width: 10),
+                    Text('Hapus'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class EmptyState extends StatelessWidget {
+  const EmptyState({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 36, 28, 120),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 74,
+            height: 74,
+            decoration: BoxDecoration(
+              color: AppColors.sage,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: const Icon(
+              Icons.task_alt_rounded,
+              color: AppColors.forest,
+              size: 34,
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'Belum ada tugas',
+            style: TextStyle(
+              color: AppColors.ink,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Tambahkan tugas baru atau pilih kategori lain untuk melihat daftar yang tersedia.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.muted, height: 1.45),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryTasksPageState extends State<CategoryTasksPage> {
+  List<Task> get _tasks {
+    if (widget.category == 'Semua') return widget.tasks;
+    return widget.tasks
+        .where((task) => task.category == widget.category)
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tasks = _tasks;
+    final doneCount = tasks.where((task) => task.isDone).length;
+
+    return Scaffold(
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(22, 18, 22, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton.filled(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: IconButton.styleFrom(
+                            backgroundColor: AppColors.white,
+                            foregroundColor: AppColors.forest,
+                          ),
+                          icon: const Icon(Icons.arrow_back_rounded),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '$doneCount/${tasks.length} selesai',
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      widget.category,
+                      style: const TextStyle(
+                        color: AppColors.ink,
+                        fontFamily: 'IrishGrover',
+                        fontSize: 38,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Daftar tugas berdasarkan kategori yang kamu pilih.',
+                      style: TextStyle(
+                        color: AppColors.muted,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (tasks.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: EmptyState(),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(22, 0, 22, 28),
+                sliver: SliverList.separated(
+                  itemCount: tasks.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final task = tasks[index];
+                    return TaskTile(
+                      task: task,
+                      onToggle: () {
+                        widget.onToggle(task);
+                        setState(() {});
+                      },
+                      onEdit: () async {
+                        await widget.onEdit(task);
+                        setState(() {});
+                      },
+                      onDelete: () {
+                        widget.onDelete(task);
+                        setState(() {});
+                      },
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
