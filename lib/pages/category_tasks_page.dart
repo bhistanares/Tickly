@@ -13,6 +13,8 @@ class CategoryTasksPage extends StatefulWidget {
     required this.onToggle,
     required this.onEdit,
     required this.onDelete,
+    this.onEditCategory,
+    this.onDeleteCategory,
     this.showAllTasks = false,
     this.showDoneOnly = false,
   });
@@ -22,6 +24,8 @@ class CategoryTasksPage extends StatefulWidget {
   final ValueChanged<Task> onToggle;
   final Future<void> Function(Task task) onEdit;
   final ValueChanged<Task> onDelete;
+  final Future<String?> Function(String category)? onEditCategory;
+  final Future<bool> Function(String category)? onDeleteCategory;
   final bool showAllTasks;
   final bool showDoneOnly;
 
@@ -321,10 +325,18 @@ class EmptyState extends StatelessWidget {
 
 class _CategoryTasksPageState extends State<CategoryTasksPage> {
   late final Timer _refreshTimer;
+  late String _category;
+
+  bool get _canManageCategory =>
+      !widget.showAllTasks &&
+      !widget.showDoneOnly &&
+      widget.onEditCategory != null &&
+      widget.onDeleteCategory != null;
 
   @override
   void initState() {
     super.initState();
+    _category = widget.category;
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) setState(() {});
     });
@@ -339,7 +351,7 @@ class _CategoryTasksPageState extends State<CategoryTasksPage> {
   List<Task> get _baseTasks {
     return (widget.showAllTasks
             ? widget.tasks
-            : widget.tasks.where((task) => task.category == widget.category))
+            : widget.tasks.where((task) => task.category == _category))
         .toList();
   }
 
@@ -355,16 +367,35 @@ class _CategoryTasksPageState extends State<CategoryTasksPage> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CategoryTasksPage(
-          category: widget.category,
+          category: _category,
           tasks: widget.tasks,
           onToggle: widget.onToggle,
           onEdit: widget.onEdit,
           onDelete: widget.onDelete,
+          onEditCategory: widget.onEditCategory,
+          onDeleteCategory: widget.onDeleteCategory,
           showAllTasks: widget.showAllTasks,
           showDoneOnly: true,
         ),
       ),
     );
+  }
+
+  Future<void> _handleCategoryAction(String action) async {
+    if (action == 'edit') {
+      final newName = await widget.onEditCategory?.call(_category);
+      if (newName == null || !mounted) return;
+      setState(() {
+        _category = newName;
+      });
+      return;
+    }
+
+    if (action == 'delete') {
+      final deleted = await widget.onDeleteCategory?.call(_category);
+      if (deleted != true || !mounted) return;
+      Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -396,7 +427,7 @@ class _CategoryTasksPageState extends State<CategoryTasksPage> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            widget.category,
+                            _category,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -407,6 +438,37 @@ class _CategoryTasksPageState extends State<CategoryTasksPage> {
                             ),
                           ),
                         ),
+                        if (_canManageCategory)
+                          PopupMenuButton<String>(
+                            color: AppColors.white,
+                            icon: const Icon(
+                              Icons.more_vert_rounded,
+                              color: AppColors.muted,
+                            ),
+                            onSelected: _handleCategoryAction,
+                            itemBuilder: (context) => const [
+                              PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit_rounded, size: 18),
+                                    SizedBox(width: 10),
+                                    Text('Edit kategori'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete_rounded, size: 18),
+                                    SizedBox(width: 10),
+                                    Text('Hapus kategori'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                     const SizedBox(height: 16),

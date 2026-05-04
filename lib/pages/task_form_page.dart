@@ -3,20 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../theme/app_colors.dart';
 
-const List<CategoryIconOption> _categoryIconOptions = [
-  CategoryIconOption(label: 'Rumah', icon: Icons.home_rounded),
-  CategoryIconOption(label: 'Ekskul', icon: Icons.groups_rounded),
-  CategoryIconOption(label: 'Hang Out', icon: Icons.celebration_rounded),
-  CategoryIconOption(label: 'Simpan', icon: Icons.bookmark_border_rounded),
-];
-
-class CategoryIconOption {
-  const CategoryIconOption({required this.label, required this.icon});
-
-  final String label;
-  final IconData icon;
-}
-
 class TaskFormPage extends StatefulWidget {
   const TaskFormPage({
     super.key,
@@ -40,7 +26,6 @@ class _TaskFormPageState extends State<TaskFormPage> {
   late final TextEditingController _newCategoryController;
   late final List<String> _categories;
   late String _category;
-  IconData _selectedCategoryIcon = Icons.home_rounded;
   DateTime? _deadline;
   bool _showNewCategoryField = false;
 
@@ -53,6 +38,10 @@ class _TaskFormPageState extends State<TaskFormPage> {
     _noteController = TextEditingController(text: widget.task?.note ?? '');
     _newCategoryController = TextEditingController();
     _categories = List<String>.from(widget.categories);
+    final taskCategory = widget.task?.category;
+    if (taskCategory != null && !_categories.contains(taskCategory)) {
+      _categories.add(taskCategory);
+    }
     _category = widget.task?.category ?? _categories.first;
     _deadline = widget.task?.deadline;
   }
@@ -69,23 +58,18 @@ class _TaskFormPageState extends State<TaskFormPage> {
     final newCategory = _newCategoryController.text.trim();
     if (newCategory.isEmpty) return;
 
-    final exists = _categories.any(
+    final existingIndex = _categories.indexWhere(
       (category) => category.toLowerCase() == newCategory.toLowerCase(),
     );
 
     setState(() {
-      if (!exists) {
+      if (existingIndex == -1) {
         _categories.add(newCategory);
+        _category = newCategory;
+      } else {
+        _category = _categories[existingIndex];
       }
-      _category = exists
-          ? _categories.firstWhere(
-              (category) => category.toLowerCase() == newCategory.toLowerCase(),
-            )
-          : newCategory;
-      if (exists) {
-        _selectedCategoryIcon =
-            widget.categoryIcons[_category] ?? _selectedCategoryIcon;
-      }
+
       _newCategoryController.clear();
       _showNewCategoryField = false;
     });
@@ -98,7 +82,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
       TaskFormResult(
         title: _titleController.text.trim(),
         category: _category,
-        categoryIcon: widget.categoryIcons[_category] ?? _selectedCategoryIcon,
+        categoryIcon: widget.categoryIcons[_category] ?? Icons.folder_rounded,
         note: _noteController.text.trim(),
         deadline: _deadline,
       ),
@@ -197,29 +181,22 @@ class _TaskFormPageState extends State<TaskFormPage> {
                       ),
                       icon: const Icon(Icons.arrow_back_rounded),
                     ),
-                    const Spacer(),
-                    Text(
-                      _isEditing ? 'Edit Task' : 'Add Task',
-                      style: const TextStyle(
-                        color: AppColors.ink,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        _isEditing ? 'Perbarui tugasmu' : 'Buat tugas baru',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.ink,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
-                    const Spacer(),
-                    const SizedBox(width: 48),
                   ],
                 ),
                 const SizedBox(height: 26),
-                Text(
-                  _isEditing ? 'Perbarui tugasmu' : 'Buat tugas baru',
-                  style: const TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 const Text(
                   'Tulis jelas, pilih kategori, lalu simpan supaya rencana hari ini lebih tertata.',
                   style: TextStyle(
@@ -298,7 +275,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                           icon: Icon(
                             _showNewCategoryField
                                 ? Icons.close_rounded
-                                : Icons.add_rounded,
+                                : Icons.create_new_folder_rounded,
                             size: 18,
                           ),
                           label: Text(
@@ -311,44 +288,6 @@ class _TaskFormPageState extends State<TaskFormPage> {
                       ),
                       if (_showNewCategoryField) ...[
                         const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _categoryIconOptions.map((option) {
-                            final isSelected =
-                                option.icon == _selectedCategoryIcon;
-
-                            return ChoiceChip(
-                              selected: isSelected,
-                              onSelected: (_) {
-                                setState(() {
-                                  _selectedCategoryIcon = option.icon;
-                                });
-                              },
-                              avatar: Icon(
-                                option.icon,
-                                size: 18,
-                                color: isSelected
-                                    ? AppColors.cream
-                                    : AppColors.forest,
-                              ),
-                              label: Text(option.label),
-                              labelStyle: TextStyle(
-                                color: isSelected
-                                    ? AppColors.cream
-                                    : AppColors.forest,
-                                fontWeight: FontWeight.w800,
-                              ),
-                              selectedColor: AppColors.olive,
-                              backgroundColor: AppColors.cream,
-                              side: const BorderSide(color: AppColors.line),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 10),
                         Row(
                           children: [
                             Expanded(
@@ -357,6 +296,10 @@ class _TaskFormPageState extends State<TaskFormPage> {
                                 textInputAction: TextInputAction.done,
                                 decoration: _inputDecoration(
                                   hint: 'Contoh: Organisasi',
+                                  prefixIcon: const Icon(
+                                    Icons.folder_rounded,
+                                    color: AppColors.forest,
+                                  ),
                                 ),
                                 onFieldSubmitted: (_) => _addCategory(),
                               ),
@@ -435,10 +378,11 @@ class _TaskFormPageState extends State<TaskFormPage> {
     );
   }
 
-  InputDecoration _inputDecoration({required String hint}) {
+  InputDecoration _inputDecoration({required String hint, Widget? prefixIcon}) {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(color: Color(0xFFAAA79F)),
+      prefixIcon: prefixIcon,
       filled: true,
       fillColor: AppColors.cream,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
