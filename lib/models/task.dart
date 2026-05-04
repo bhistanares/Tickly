@@ -1,3 +1,5 @@
+import 'package:flutter/widgets.dart';
+
 class Task {
   Task({
     required this.id,
@@ -20,12 +22,14 @@ class TaskFormResult {
   const TaskFormResult({
     required this.title,
     required this.category,
+    required this.categoryIcon,
     required this.note,
     this.deadline,
   });
 
   final String title;
   final String category;
+  final IconData categoryIcon;
   final String note;
   final DateTime? deadline;
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/task.dart';
 import '../theme/app_colors.dart';
@@ -39,18 +40,18 @@ class Header extends StatelessWidget {
                     style: TextStyle(
                       color: AppColors.ink,
                       fontFamily: 'IrishGrover',
-                      fontSize: 44,
+                      fontSize: 34,
                       fontWeight: FontWeight.w400,
                       height: 1.05,
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   date,
                   style: const TextStyle(
                     color: AppColors.muted,
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                     height: 1.2,
                   ),
@@ -62,7 +63,7 @@ class Header extends StatelessWidget {
           const Flexible(
             flex: 0,
             child: Padding(
-              padding: EdgeInsets.only(top: 8),
+              padding: EdgeInsets.only(top: 4),
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
@@ -85,124 +86,19 @@ class Header extends StatelessWidget {
   }
 }
 
-class MotivationCard extends StatefulWidget {
-  const MotivationCard({super.key});
-
-  @override
-  State<MotivationCard> createState() => _MotivationCardState();
-}
-
-class _MotivationCardState extends State<MotivationCard> {
-  final PageController _pageController = PageController();
-  late final Timer _timer;
-  int _currentIndex = 0;
-
-  final List<String> _messages = const [
-    'Sudah ngapain aja kamu hari ini?',
-    'Selesaikan sedikit demi sedikit, nanti terasa ringan.',
-    'Buat dirimu lebih santai dengan tugas yang tertata.',
-  ];
-
-  final List<List<Color>> _gradients = const [
-    [Color(0xFF6B543B), Color(0xFFEEDDC4)],
-    [Color(0xFF8F9229), Color(0xFFE7E3BF)],
-    [Color(0xFFC86F65), AppColors.blush],
-  ];
-
-  final List<Color> _textColors = const [
-    AppColors.cream,
-    AppColors.ink,
-    AppColors.ink,
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!_pageController.hasClients) return;
-
-      setState(() {
-        _currentIndex = (_currentIndex + 1) % _messages.length;
-      });
-      _pageController.animateToPage(
-        _currentIndex,
-        duration: const Duration(milliseconds: 450),
-        curve: Curves.easeOutCubic,
-      );
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer.cancel();
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = _gradients[_currentIndex];
-    final textColor = _textColors[_currentIndex];
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 450),
-      curve: Curves.easeOutCubic,
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: colors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x245B4734),
-            blurRadius: 24,
-            offset: Offset(0, 14),
-          ),
-        ],
-      ),
-      child: SizedBox(
-        height: 44,
-        child: PageView.builder(
-          controller: _pageController,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _messages.length,
-          itemBuilder: (context, index) {
-            return Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                _messages[index],
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 15,
-                  height: 1.35,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
 class StatCard extends StatelessWidget {
   const StatCard({
     super.key,
     required this.label,
     required this.value,
     required this.icon,
+    this.onTap,
   });
 
   final String label;
   final String value;
   final IconData icon;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -216,41 +112,141 @@ class StatCard extends StatelessWidget {
       'Total' => AppColors.forest,
       _ => AppColors.olive,
     };
+    final depthColor = switch (label) {
+      'Tertunda' => const Color(0xFF9E4945),
+      'Total' => const Color(0xFF3C2D1E),
+      _ => const Color(0xFF6E7119),
+    };
+    final highlightColor = switch (label) {
+      'Tertunda' => const Color(0xFFFFE1DB),
+      'Total' => const Color(0xFFFFFFFF),
+      _ => const Color(0xFFF4F0C8),
+    };
+    final gradientColors = switch (label) {
+      'Tertunda' => const [Color(0xFFFFD8D2), Color(0xFFF2ADA7)],
+      'Total' => const [Color(0xFFF3D9BE), Color(0xFFD9B48F)],
+      _ => const [Color(0xFFF1EFC8), Color(0xFFCFCF88)],
+    };
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.line),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x165B4734),
-            blurRadius: 18,
-            offset: Offset(0, 8),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Transform.translate(
+              offset: const Offset(0, 5),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: depthColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: gradientColors,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: highlightColor.withValues(alpha: 0.9),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: depthColor.withValues(alpha: 0.24),
+                  blurRadius: 22,
+                  offset: const Offset(0, 12),
+                ),
+                BoxShadow(
+                  color: highlightColor.withValues(alpha: 0.64),
+                  blurRadius: 8,
+                  offset: const Offset(-2, -2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 38,
+                  child: Align(
+                    alignment: Alignment.bottomLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        StatIcon(icon: icon, color: accentColor),
+                        const SizedBox(width: 6),
+                        Text(
+                          value,
+                          style: const TextStyle(
+                            color: AppColors.ink,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: accentColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+}
+
+class StatIcon extends StatelessWidget {
+  const StatIcon({super.key, required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          Icon(icon, color: accentColor, size: 22),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              color: AppColors.ink,
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
+          Transform.translate(
+            offset: const Offset(2.2, 2.4),
+            child: Icon(
+              icon,
+              color: AppColors.ink.withValues(alpha: 0.22),
+              size: 28,
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              color: accentColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+          Transform.translate(
+            offset: const Offset(1, 1),
+            child: Icon(icon, color: color.withValues(alpha: 0.55), size: 28),
+          ),
+          Icon(icon, color: color, size: 28),
+          Transform.translate(
+            offset: const Offset(-1.6, -1.6),
+            child: Icon(
+              icon,
+              color: AppColors.white.withValues(alpha: 0.45),
+              size: 22,
             ),
           ),
         ],
@@ -263,114 +259,190 @@ class CategoryCard extends StatelessWidget {
   const CategoryCard({
     super.key,
     required this.label,
+    required this.icon,
+    required this.iconColor,
+    required this.badgeColor,
     required this.taskCount,
     required this.doneCount,
+    this.warningLabel,
+    this.isWarningCritical = false,
     required this.onTap,
   });
 
   final String label;
+  final IconData icon;
+  final Color iconColor;
+  final Color badgeColor;
   final int taskCount;
   final int doneCount;
+  final String? warningLabel;
+  final bool isWarningCritical;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final pendingCount = taskCount - doneCount;
+    final hasDeadlineWarning = warningLabel != null;
+    final warningColor = isWarningCritical
+        ? const Color(0xFFC45E58)
+        : const Color(0xFFD36A4D);
 
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.line),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x145B4734),
-              blurRadius: 16,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: _categoryColor(label),
-                borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: hasDeadlineWarning
+                  ? const Color(0xFFFFE3DE)
+                  : AppColors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: hasDeadlineWarning ? warningColor : AppColors.line,
+                width: hasDeadlineWarning ? 1.6 : 1,
               ),
-              child: Icon(
-                _categoryIcon(label),
-                color: label == 'Belanja' ? AppColors.gold : AppColors.forest,
-                size: 24,
+              boxShadow: [
+                BoxShadow(
+                  color: hasDeadlineWarning
+                      ? warningColor.withValues(alpha: 0.26)
+                      : const Color(0x145B4734),
+                  blurRadius: hasDeadlineWarning ? 20 : 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  constraints: const BoxConstraints(minHeight: 46),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withValues(alpha: 0.88),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: badgeColor.withValues(alpha: 0.38),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, color: iconColor, size: 24),
+                      const SizedBox(width: 9),
+                      Flexible(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '$taskCount tugas - $pendingCount tertunda',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: hasDeadlineWarning ? warningColor : AppColors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (hasDeadlineWarning)
+            Positioned(
+              left: -5,
+              top: -5,
+              child: Container(
+                width: 25,
+                height: 25,
+                decoration: BoxDecoration(
+                  color: warningColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.white, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: warningColor.withValues(alpha: 0.42),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Text(
+                    '!',
+                    style: TextStyle(
+                      color: AppColors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                    ),
+                  ),
+                ),
               ),
             ),
-            const Spacer(),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.ink,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '$taskCount tugas - $pendingCount tertunda',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
+}
 
-  Color _categoryColor(String category) {
-    return switch (category) {
-      'Semua' => AppColors.cream,
-      'Pribadi' => AppColors.blush,
-      'Belajar' => AppColors.sage,
-      'Sekolah' => const Color(0xFFF4E0C8),
-      'Belanja' => AppColors.forest,
-      _ => const Color(0xFFEFE4CF),
-    };
-  }
+class CategoryDeadlineWarning {
+  const CategoryDeadlineWarning({
+    required this.label,
+    required this.isCritical,
+  });
 
-  IconData _categoryIcon(String category) {
-    return switch (category) {
-      'Semua' => Icons.dashboard_rounded,
-      'Pribadi' => Icons.spa_rounded,
-      'Belajar' => Icons.menu_book_rounded,
-      'Sekolah' => Icons.school_rounded,
-      'Belanja' => Icons.shopping_cart_rounded,
-      _ => Icons.folder_rounded,
-    };
-  }
+  final String label;
+  final bool isCritical;
 }
 
 class _HomePageState extends State<HomePage> {
-  final List<String> _categories = [
-    'Semua',
-    'Pribadi',
-    'Belajar',
-    'Sekolah',
-    'Belanja',
-  ];
+  final List<String> _categories = ['Pribadi', 'Belajar', 'Sekolah', 'Belanja'];
+
+  final Map<String, IconData> _categoryIcons = {
+    'Pribadi': Icons.spa_rounded,
+    'Belajar': Icons.menu_book_rounded,
+    'Sekolah': Icons.school_rounded,
+    'Belanja': Icons.shopping_cart_rounded,
+  };
+
+  final Map<String, Color> _categoryIconColors = {
+    'Pribadi': Color(0xFFFFD1C8),
+    'Belajar': Color(0xFFCFE6D9),
+    'Sekolah': Color(0xFFFFE0A8),
+    'Belanja': Color(0xFFD9D0FF),
+  };
+
+  final Map<String, Color> _categoryBadgeColors = {
+    'Pribadi': Color(0xFF7F5A68),
+    'Belajar': Color(0xFF4F6F68),
+    'Sekolah': Color(0xFF8A6F4D),
+    'Belanja': Color(0xFF6E5A7D),
+  };
 
   int _nextId = 5;
+  Timer? _deadlineAlertTimer;
+  final Set<int> _alertedOverdueTaskIds = {};
 
   final List<Task> _tasks = [
     Task(
@@ -405,13 +477,137 @@ class _HomePageState extends State<HomePage> {
 
   int get _doneCount => _tasks.where((task) => task.isDone).length;
 
+  List<String> get _folderCategories => _categories.where((category) {
+    final normalizedCategory = category.toLowerCase();
+    return normalizedCategory != 'semua' && normalizedCategory != 'ekskul';
+  }).toList();
+
+  IconData _categoryIcon(String category) {
+    return _categoryIcons[category] ?? Icons.folder_rounded;
+  }
+
+  Color _categoryIconColor(String category) {
+    return _categoryIconColors[category] ?? const Color(0xFFD6E3CE);
+  }
+
+  Color _categoryBadgeColor(String category) {
+    return _categoryBadgeColors[category] ?? const Color(0xFF6F6458);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkOverdueTasks());
+    _deadlineAlertTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted) setState(() {});
+      _checkOverdueTasks();
+    });
+  }
+
+  @override
+  void dispose() {
+    _deadlineAlertTimer?.cancel();
+    super.dispose();
+  }
+
+  bool _isTaskOverdue(Task task) {
+    return !task.isDone &&
+        task.deadline != null &&
+        task.deadline!.isBefore(DateTime.now());
+  }
+
+  bool _isTaskNearDeadline(Task task) {
+    if (task.isDone || task.deadline == null || _isTaskOverdue(task)) {
+      return false;
+    }
+
+    final remaining = task.deadline!.difference(DateTime.now());
+    return remaining <= const Duration(days: 2);
+  }
+
+  CategoryDeadlineWarning? _deadlineWarningForCategory(List<Task> tasks) {
+    final overdueCount = tasks.where(_isTaskOverdue).length;
+    if (overdueCount > 0) {
+      return CategoryDeadlineWarning(
+        label: '$overdueCount tugas terlambat',
+        isCritical: true,
+      );
+    }
+
+    final nearDeadlineCount = tasks.where(_isTaskNearDeadline).length;
+    if (nearDeadlineCount > 0) {
+      return CategoryDeadlineWarning(
+        label: '$nearDeadlineCount deadline H-2',
+        isCritical: false,
+      );
+    }
+
+    return null;
+  }
+
+  void _checkOverdueTasks() {
+    if (!mounted) return;
+
+    _alertedOverdueTaskIds.removeWhere((taskId) {
+      Task? task;
+      for (final item in _tasks) {
+        if (item.id == taskId) {
+          task = item;
+          break;
+        }
+      }
+      return task == null || !_isTaskOverdue(task);
+    });
+
+    final overdueTasks = _tasks
+        .where(
+          (task) =>
+              _isTaskOverdue(task) && !_alertedOverdueTaskIds.contains(task.id),
+        )
+        .toList();
+    if (overdueTasks.isEmpty) return;
+
+    final task = overdueTasks.first;
+    _alertedOverdueTaskIds.addAll(overdueTasks.map((task) => task.id));
+    SystemSound.play(SystemSoundType.alert);
+
+    final extraCount = overdueTasks.length - 1;
+    final message = extraCount > 0
+        ? '${task.title} dan $extraCount tugas lain melewati deadline!'
+        : '${task.title} sudah melewati deadline!';
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: AppColors.cream),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFFC45E58),
+          duration: const Duration(seconds: 5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      );
+  }
+
   Future<void> _openTaskForm({Task? task}) async {
     final result = await Navigator.of(context).push<TaskFormResult>(
       MaterialPageRoute(
         builder: (_) => TaskFormPage(
-          categories: _categories
-              .where((category) => category != 'Semua')
-              .toList(),
+          categories: _folderCategories,
+          categoryIcons: _categoryIcons,
           task: task,
         ),
       ),
@@ -423,6 +619,7 @@ class _HomePageState extends State<HomePage> {
       if (!_categories.contains(result.category)) {
         _categories.add(result.category);
       }
+      _categoryIcons[result.category] = result.categoryIcon;
 
       if (task == null) {
         _tasks.insert(
@@ -444,6 +641,7 @@ class _HomePageState extends State<HomePage> {
           ..deadline = result.deadline;
       }
     });
+    _checkOverdueTasks();
   }
 
   void _openCategory(String category) {
@@ -461,7 +659,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   List<Task> _tasksForCategory(String category) {
-    if (category == 'Semua') return _tasks;
     return _tasks.where((task) => task.category == category).toList();
   }
 
@@ -469,11 +666,13 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       task.isDone = !task.isDone;
     });
+    _checkOverdueTasks();
   }
 
   void _deleteTask(Task task) {
     setState(() {
       _tasks.removeWhere((item) => item.id == task.id);
+      _alertedOverdueTaskIds.remove(task.id);
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -529,8 +728,6 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     Header(date: _formattedDate()),
                     const SizedBox(height: 22),
-                    const MotivationCard(),
-                    const SizedBox(height: 18),
                     Row(
                       children: [
                         Expanded(
@@ -538,6 +735,20 @@ class _HomePageState extends State<HomePage> {
                             label: 'Total',
                             value: _tasks.length.toString(),
                             icon: Icons.format_list_bulleted_rounded,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => CategoryTasksPage(
+                                    category: 'Total',
+                                    tasks: _tasks,
+                                    onToggle: _toggleTask,
+                                    onEdit: (task) => _openTaskForm(task: task),
+                                    onDelete: _deleteTask,
+                                    showAllTasks: true,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -546,6 +757,21 @@ class _HomePageState extends State<HomePage> {
                             label: 'Selesai',
                             value: _doneCount.toString(),
                             icon: Icons.check_rounded,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => CategoryTasksPage(
+                                    category: 'Selesai',
+                                    tasks: _tasks,
+                                    onToggle: _toggleTask,
+                                    onEdit: (task) => _openTaskForm(task: task),
+                                    onDelete: _deleteTask,
+                                    showAllTasks: true,
+                                    showDoneOnly: true,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -572,7 +798,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         Text(
-                          '${_categories.length} folder',
+                          '${_folderCategories.length} folder',
                           style: const TextStyle(
                             color: AppColors.muted,
                             fontWeight: FontWeight.w600,
@@ -588,15 +814,21 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.fromLTRB(22, 0, 22, 100),
               sliver: SliverGrid(
                 delegate: SliverChildBuilderDelegate((context, index) {
-                  final category = _categories[index];
+                  final category = _folderCategories[index];
                   final tasks = _tasksForCategory(category);
+                  final warning = _deadlineWarningForCategory(tasks);
                   return CategoryCard(
                     label: category,
+                    icon: _categoryIcon(category),
+                    iconColor: _categoryIconColor(category),
+                    badgeColor: _categoryBadgeColor(category),
                     taskCount: tasks.length,
                     doneCount: tasks.where((task) => task.isDone).length,
+                    warningLabel: warning?.label,
+                    isWarningCritical: warning?.isCritical ?? false,
                     onTap: () => _openCategory(category),
                   );
-                }, childCount: _categories.length),
+                }, childCount: _folderCategories.length),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   mainAxisSpacing: 12,

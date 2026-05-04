@@ -13,6 +13,8 @@ class CategoryTasksPage extends StatefulWidget {
     required this.onToggle,
     required this.onEdit,
     required this.onDelete,
+    this.showAllTasks = false,
+    this.showDoneOnly = false,
   });
 
   final String category;
@@ -20,6 +22,8 @@ class CategoryTasksPage extends StatefulWidget {
   final ValueChanged<Task> onToggle;
   final Future<void> Function(Task task) onEdit;
   final ValueChanged<Task> onDelete;
+  final bool showAllTasks;
+  final bool showDoneOnly;
 
   @override
   State<CategoryTasksPage> createState() => _CategoryTasksPageState();
@@ -332,17 +336,42 @@ class _CategoryTasksPageState extends State<CategoryTasksPage> {
     super.dispose();
   }
 
-  List<Task> get _tasks {
-    if (widget.category == 'Semua') return widget.tasks;
-    return widget.tasks
-        .where((task) => task.category == widget.category)
+  List<Task> get _baseTasks {
+    return (widget.showAllTasks
+            ? widget.tasks
+            : widget.tasks.where((task) => task.category == widget.category))
         .toList();
+  }
+
+  List<Task> get _tasks {
+    if (widget.showDoneOnly) {
+      return _baseTasks.where((task) => task.isDone).toList();
+    }
+
+    return _baseTasks.where((task) => !task.isDone).toList();
+  }
+
+  void _openHistory() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CategoryTasksPage(
+          category: widget.category,
+          tasks: widget.tasks,
+          onToggle: widget.onToggle,
+          onEdit: widget.onEdit,
+          onDelete: widget.onDelete,
+          showAllTasks: widget.showAllTasks,
+          showDoneOnly: true,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final tasks = _tasks;
-    final doneCount = tasks.where((task) => task.isDone).length;
+    final baseTasks = _baseTasks;
+    final doneCount = baseTasks.where((task) => task.isDone).length;
 
     return Scaffold(
       body: SafeArea(
@@ -364,9 +393,44 @@ class _CategoryTasksPageState extends State<CategoryTasksPage> {
                           ),
                           icon: const Icon(Icons.arrow_back_rounded),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            widget.category,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.ink,
+                              fontFamily: 'IrishGrover',
+                              fontSize: 34,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!widget.showDoneOnly) ...[
+                          IconButton.filledTonal(
+                            onPressed: _openHistory,
+                            style: IconButton.styleFrom(
+                              backgroundColor: AppColors.line.withValues(
+                                alpha: 0.82,
+                              ),
+                              foregroundColor: AppColors.muted,
+                              fixedSize: const Size(34, 34),
+                              minimumSize: const Size(34, 34),
+                              padding: EdgeInsets.zero,
+                            ),
+                            icon: const Icon(Icons.check_rounded, size: 20),
+                          ),
+                          const SizedBox(width: 10),
+                        ],
                         Text(
-                          '$doneCount/${tasks.length} selesai',
+                          '$doneCount/${baseTasks.length} selesai',
                           style: const TextStyle(
                             color: AppColors.muted,
                             fontWeight: FontWeight.w800,
@@ -374,20 +438,12 @@ class _CategoryTasksPageState extends State<CategoryTasksPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    Text(
-                      widget.category,
-                      style: const TextStyle(
-                        color: AppColors.ink,
-                        fontFamily: 'IrishGrover',
-                        fontSize: 38,
-                        height: 1,
-                      ),
-                    ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Daftar tugas berdasarkan kategori yang kamu pilih.',
-                      style: TextStyle(
+                    Text(
+                      widget.showDoneOnly
+                          ? 'Daftar tugas yang sudah selesai.'
+                          : 'Daftar tugas berdasarkan kategori yang kamu pilih.',
+                      style: const TextStyle(
                         color: AppColors.muted,
                         height: 1.4,
                         fontWeight: FontWeight.w600,

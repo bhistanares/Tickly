@@ -3,10 +3,30 @@ import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../theme/app_colors.dart';
 
+const List<CategoryIconOption> _categoryIconOptions = [
+  CategoryIconOption(label: 'Rumah', icon: Icons.home_rounded),
+  CategoryIconOption(label: 'Ekskul', icon: Icons.groups_rounded),
+  CategoryIconOption(label: 'Hang Out', icon: Icons.celebration_rounded),
+  CategoryIconOption(label: 'Simpan', icon: Icons.bookmark_border_rounded),
+];
+
+class CategoryIconOption {
+  const CategoryIconOption({required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
+}
+
 class TaskFormPage extends StatefulWidget {
-  const TaskFormPage({super.key, required this.categories, this.task});
+  const TaskFormPage({
+    super.key,
+    required this.categories,
+    required this.categoryIcons,
+    this.task,
+  });
 
   final List<String> categories;
+  final Map<String, IconData> categoryIcons;
   final Task? task;
 
   @override
@@ -20,6 +40,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
   late final TextEditingController _newCategoryController;
   late final List<String> _categories;
   late String _category;
+  IconData _selectedCategoryIcon = Icons.home_rounded;
   DateTime? _deadline;
   bool _showNewCategoryField = false;
 
@@ -61,6 +82,10 @@ class _TaskFormPageState extends State<TaskFormPage> {
               (category) => category.toLowerCase() == newCategory.toLowerCase(),
             )
           : newCategory;
+      if (exists) {
+        _selectedCategoryIcon =
+            widget.categoryIcons[_category] ?? _selectedCategoryIcon;
+      }
       _newCategoryController.clear();
       _showNewCategoryField = false;
     });
@@ -73,6 +98,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
       TaskFormResult(
         title: _titleController.text.trim(),
         category: _category,
+        categoryIcon: widget.categoryIcons[_category] ?? _selectedCategoryIcon,
         note: _noteController.text.trim(),
         deadline: _deadline,
       ),
@@ -234,7 +260,18 @@ class _TaskFormPageState extends State<TaskFormPage> {
                             .map(
                               (category) => DropdownMenuItem(
                                 value: category,
-                                child: Text(category),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      widget.categoryIcons[category] ??
+                                          Icons.folder_rounded,
+                                      size: 18,
+                                      color: AppColors.forest,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(category),
+                                  ],
+                                ),
                               ),
                             )
                             .toList(),
@@ -274,6 +311,44 @@ class _TaskFormPageState extends State<TaskFormPage> {
                       ),
                       if (_showNewCategoryField) ...[
                         const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _categoryIconOptions.map((option) {
+                            final isSelected =
+                                option.icon == _selectedCategoryIcon;
+
+                            return ChoiceChip(
+                              selected: isSelected,
+                              onSelected: (_) {
+                                setState(() {
+                                  _selectedCategoryIcon = option.icon;
+                                });
+                              },
+                              avatar: Icon(
+                                option.icon,
+                                size: 18,
+                                color: isSelected
+                                    ? AppColors.cream
+                                    : AppColors.forest,
+                              ),
+                              label: Text(option.label),
+                              labelStyle: TextStyle(
+                                color: isSelected
+                                    ? AppColors.cream
+                                    : AppColors.forest,
+                                fontWeight: FontWeight.w800,
+                              ),
+                              selectedColor: AppColors.olive,
+                              backgroundColor: AppColors.cream,
+                              side: const BorderSide(color: AppColors.line),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 10),
                         Row(
                           children: [
                             Expanded(
