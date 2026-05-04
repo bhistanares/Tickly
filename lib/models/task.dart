@@ -5,6 +5,7 @@ class Task {
     required this.category,
     required this.note,
     required this.isDone,
+    this.deadline,
   });
 
   final int id;
@@ -12,6 +13,7 @@ class Task {
   String category;
   String note;
   bool isDone;
+  DateTime? deadline;
 }
 
 class TaskFormResult {
@@ -19,9 +21,11 @@ class TaskFormResult {
     required this.title,
     required this.category,
     required this.note,
+    this.deadline,
   });
 
   final String title;
   final String category;
   final String note;
+  final DateTime? deadline;
 }

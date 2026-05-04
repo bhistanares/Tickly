@@ -20,6 +20,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
   late final TextEditingController _newCategoryController;
   late final List<String> _categories;
   late String _category;
+  DateTime? _deadline;
   bool _showNewCategoryField = false;
 
   bool get _isEditing => widget.task != null;
@@ -32,6 +33,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
     _newCategoryController = TextEditingController();
     _categories = List<String>.from(widget.categories);
     _category = widget.task?.category ?? _categories.first;
+    _deadline = widget.task?.deadline;
   }
 
   @override
@@ -72,8 +74,80 @@ class _TaskFormPageState extends State<TaskFormPage> {
         title: _titleController.text.trim(),
         category: _category,
         note: _noteController.text.trim(),
+        deadline: _deadline,
       ),
     );
+  }
+
+  Future<void> _pickDeadline() async {
+    final now = DateTime.now();
+    final initialDate = _deadline ?? now;
+
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 5),
+      helpText: 'Pilih deadline',
+      cancelText: 'Batal',
+      confirmText: 'Lanjut',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: AppColors.olive,
+              onPrimary: AppColors.cream,
+              surface: AppColors.white,
+              onSurface: AppColors.ink,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (selectedDate == null || !mounted) return;
+
+    final selectedTime = await showTimePicker(
+      context: context,
+      initialTime: _deadline == null
+          ? TimeOfDay.fromDateTime(now)
+          : TimeOfDay.fromDateTime(_deadline!),
+      helpText: 'Pilih jam',
+      cancelText: 'Batal',
+      confirmText: 'Pakai',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: AppColors.olive,
+              onPrimary: AppColors.cream,
+              surface: AppColors.white,
+              onSurface: AppColors.ink,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (selectedTime == null) return;
+
+    setState(() {
+      _deadline = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        selectedTime.hour,
+        selectedTime.minute,
+      );
+    });
+  }
+
+  void _clearDeadline() {
+    setState(() {
+      _deadline = null;
+    });
   }
 
   @override
@@ -234,6 +308,14 @@ class _TaskFormPageState extends State<TaskFormPage> {
                         ),
                       ],
                       const SizedBox(height: 20),
+                      const FieldLabel(label: 'Deadline'),
+                      const SizedBox(height: 8),
+                      _DeadlineSelector(
+                        deadline: _deadline,
+                        onPick: _pickDeadline,
+                        onClear: _clearDeadline,
+                      ),
+                      const SizedBox(height: 20),
                       const FieldLabel(label: 'Catatan'),
                       const SizedBox(height: 8),
                       TextFormField(
@@ -329,6 +411,101 @@ class FormCard extends StatelessWidget {
       ),
       child: child,
     );
+  }
+}
+
+class _DeadlineSelector extends StatelessWidget {
+  const _DeadlineSelector({
+    required this.deadline,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  final DateTime? deadline;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasDeadline = deadline != null;
+
+    return InkWell(
+      onTap: onPick,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(
+          color: AppColors.cream,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.line),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: hasDeadline ? AppColors.blush : AppColors.sage,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                hasDeadline
+                    ? Icons.event_available_rounded
+                    : Icons.event_rounded,
+                color: AppColors.forest,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hasDeadline
+                        ? _formatDeadline(deadline!)
+                        : 'Pilih tanggal dan jam',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    hasDeadline ? 'Deadline tugas' : 'Opsional',
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (hasDeadline)
+              IconButton(
+                onPressed: onClear,
+                color: AppColors.muted,
+                icon: const Icon(Icons.close_rounded),
+                tooltip: 'Hapus deadline',
+              )
+            else
+              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDeadline(DateTime value) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$day/$month/${value.year} - $hour.$minute';
   }
 }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/task.dart';
@@ -39,13 +41,23 @@ class TaskTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isOverdue =
+        task.deadline != null &&
+        !task.isDone &&
+        task.deadline!.isBefore(DateTime.now());
+
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: isOverdue ? const Color(0xFFFFE3DE) : AppColors.white,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: task.isDone ? AppColors.sage : AppColors.line,
+          color: isOverdue
+              ? const Color(0xFFD86B62)
+              : task.isDone
+              ? AppColors.sage
+              : AppColors.line,
+          width: isOverdue ? 1.6 : 1,
         ),
         boxShadow: const [
           BoxShadow(
@@ -119,23 +131,34 @@ class TaskTile extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.sage.withValues(alpha: 0.72),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    task.category,
-                    style: const TextStyle(
-                      color: AppColors.forest,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.sage.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        task.category,
+                        style: const TextStyle(
+                          color: AppColors.forest,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
-                  ),
+                    if (task.deadline != null)
+                      _DeadlineBadge(
+                        deadline: task.deadline!,
+                        isOverdue: isOverdue,
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -173,6 +196,78 @@ class TaskTile extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _DeadlineBadge extends StatelessWidget {
+  const _DeadlineBadge({required this.deadline, required this.isOverdue});
+
+  final DateTime deadline;
+  final bool isOverdue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isOverdue
+            ? const Color(0xFFFFC7BF)
+            : AppColors.cream.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.schedule_rounded,
+            size: 13,
+            color: isOverdue ? const Color(0xFFC45E58) : AppColors.muted,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            isOverdue ? 'Terlambat' : _formatRelativeDeadline(deadline),
+            style: TextStyle(
+              color: isOverdue ? const Color(0xFFC45E58) : AppColors.muted,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatRelativeDeadline(DateTime value) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final date = DateTime(value.year, value.month, value.day);
+    final difference = date.difference(today).inDays;
+    final time = _formatTime(value);
+
+    if (difference == 0) return 'Hari ini, $time';
+    if (difference == 1) return 'Besok, $time';
+
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+    return '${value.day} ${months[value.month - 1]}, $time';
+  }
+
+  String _formatTime(DateTime value) {
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$hour.$minute';
   }
 }
 
@@ -221,6 +316,22 @@ class EmptyState extends StatelessWidget {
 }
 
 class _CategoryTasksPageState extends State<CategoryTasksPage> {
+  late final Timer _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer.cancel();
+    super.dispose();
+  }
+
   List<Task> get _tasks {
     if (widget.category == 'Semua') return widget.tasks;
     return widget.tasks

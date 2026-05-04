@@ -433,13 +433,15 @@ class _HomePageState extends State<HomePage> {
             category: result.category,
             note: result.note,
             isDone: false,
+            deadline: result.deadline,
           ),
         );
       } else {
         task
           ..title = result.title
           ..category = result.category
-          ..note = result.note;
+          ..note = result.note
+          ..deadline = result.deadline;
       }
     });
   }
