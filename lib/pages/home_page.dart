@@ -768,6 +768,580 @@ class _StackedFolderLayer extends StatelessWidget {
   }
 }
 
+class CategoryFolderSheetStack extends StatelessWidget {
+  const CategoryFolderSheetStack({
+    super.key,
+    required this.categories,
+    required this.selectedCategory,
+    required this.isExpanded,
+    required this.folderColors,
+    required this.iconForCategory,
+    required this.taskCountForCategory,
+    required this.doneCountForCategory,
+    required this.warningForCategory,
+    required this.onTapCategory,
+  });
+
+  final List<String> categories;
+  final String? selectedCategory;
+  final bool isExpanded;
+  final Map<String, Color> folderColors;
+  final IconData Function(String category) iconForCategory;
+  final int Function(String category) taskCountForCategory;
+  final int Function(String category) doneCountForCategory;
+  final CategoryDeadlineWarning? Function(String category) warningForCategory;
+  final ValueChanged<String> onTapCategory;
+
+  static const double _sheetHeight = 122;
+  static const double _collapsedStep = 42;
+  static const double _expandedStep = 76;
+  static const double _selectedGap = 58;
+
+  @override
+  Widget build(BuildContext context) {
+    if (categories.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final selectedIndex = categories.indexOf(selectedCategory ?? '');
+    final totalTaskCount = categories.fold<int>(
+      0,
+      (total, category) => total + taskCountForCategory(category),
+    );
+    final stackHeight =
+        _topForIndex(categories.length - 1, selectedIndex) +
+        _sheetHeight +
+        (selectedIndex == categories.length - 1 ? _selectedGap : 0) +
+        24;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+      height: stackHeight,
+      decoration: BoxDecoration(
+        color: AppColors.white.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppColors.line),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x185B4734),
+            blurRadius: 24,
+            offset: Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.white, AppColors.cream],
+                ),
+              ),
+            ),
+          ),
+          for (var index = 0; index < categories.length; index++)
+            AnimatedPositioned(
+              key: ValueKey(categories[index]),
+              duration: Duration(milliseconds: 260 + index * 18),
+              curve: Curves.easeOutCubic,
+              left: 18,
+              right: 18,
+              top: 22 + _topForIndex(index, selectedIndex),
+              child: CategoryFolderSheet(
+                category: categories[index],
+                icon: iconForCategory(categories[index]),
+                color:
+                    folderColors[categories[index]] ?? const Color(0xFF9A8DA7),
+                taskCount: taskCountForCategory(categories[index]),
+                doneCount: doneCountForCategory(categories[index]),
+                warning: warningForCategory(categories[index]),
+                tabSlot: index % 3,
+                isSelected: isExpanded && selectedCategory == categories[index],
+                selectedExtension:
+                    isExpanded && selectedCategory == categories[index]
+                    ? _selectedGap
+                    : 0,
+                onTap: () => onTapCategory(categories[index]),
+              ),
+            ),
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: 22,
+            child: IgnorePointer(
+              ignoring: true,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: isExpanded ? 0 : 1,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.cream,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: AppColors.white.withValues(alpha: 0.9),
+                      width: 1.4,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x245B4734),
+                        blurRadius: 22,
+                        offset: Offset(0, 12),
+                      ),
+                      BoxShadow(
+                        color: Color(0x55FFFCF7),
+                        blurRadius: 8,
+                        offset: Offset(-2, -2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: AppColors.sage,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.folder_copy_rounded,
+                          color: AppColors.forest,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Kumpulan folder',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AppColors.ink,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${categories.length} kategori - $totalTaskCount tugas',
+                              style: const TextStyle(
+                                color: AppColors.muted,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  double _topForIndex(int index, int selectedIndex) {
+    final step = isExpanded ? _expandedStep : _collapsedStep;
+    final pushedBySelection =
+        isExpanded && selectedIndex != -1 && index > selectedIndex;
+    return index * step + (pushedBySelection ? _selectedGap : 0);
+  }
+}
+
+class CategoryFolderSheet extends StatelessWidget {
+  const CategoryFolderSheet({
+    super.key,
+    required this.category,
+    required this.icon,
+    required this.color,
+    required this.taskCount,
+    required this.doneCount,
+    required this.warning,
+    required this.tabSlot,
+    required this.isSelected,
+    required this.selectedExtension,
+    required this.onTap,
+  });
+
+  final String category;
+  final IconData icon;
+  final Color color;
+  final int taskCount;
+  final int doneCount;
+  final CategoryDeadlineWarning? warning;
+  final int tabSlot;
+  final bool isSelected;
+  final double selectedExtension;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final pendingCount = taskCount - doneCount;
+    final warningColor = (warning?.isCritical ?? false)
+        ? const Color(0xFFC45E58)
+        : const Color(0xFFD36A4D);
+    final bodyColor = Color.lerp(color, AppColors.white, 0.34)!;
+    final tabColor = Color.lerp(color, AppColors.white, 0.12)!;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(2),
+      child: SizedBox(
+        height: 122 + selectedExtension,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final tabWidth = (constraints.maxWidth * 0.36).clamp(104.0, 138.0);
+            final tabLeft = switch (tabSlot) {
+              0 => 20.0,
+              1 => (constraints.maxWidth - tabWidth) / 2,
+              _ => constraints.maxWidth - tabWidth - 20,
+            };
+
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  left: tabLeft,
+                  top: 0,
+                  width: tabWidth,
+                  height: 34,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned(
+                        left: 4,
+                        right: 4,
+                        bottom: -4,
+                        child: Container(
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: color.withValues(alpha: 0.16),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: tabColor,
+                          border: Border(
+                            top: BorderSide(
+                              color: AppColors.white.withValues(alpha: 0.38),
+                              width: 1.2,
+                            ),
+                            left: BorderSide(
+                              color: color.withValues(alpha: 0.36),
+                            ),
+                            right: BorderSide(
+                              color: color.withValues(alpha: 0.36),
+                            ),
+                          ),
+                        ),
+                        child: Text(
+                          category,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 10,
+                        right: 10,
+                        top: 6,
+                        child: Container(
+                          height: 1,
+                          color: AppColors.white.withValues(alpha: 0.22),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 28,
+                  bottom: 0,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    padding: EdgeInsets.zero,
+                    decoration: BoxDecoration(
+                      color: bodyColor,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color.lerp(bodyColor, AppColors.white, 0.18)!,
+                          bodyColor,
+                          Color.lerp(bodyColor, AppColors.ink, 0.035)!,
+                        ],
+                        stops: const [0, 0.62, 1],
+                      ),
+                      borderRadius: BorderRadius.zero,
+                      border: Border.all(
+                        color: warning == null
+                            ? (isSelected
+                                  ? AppColors.olive.withValues(alpha: 0.55)
+                                  : color.withValues(alpha: 0.18))
+                            : warningColor,
+                        width: warning == null && !isSelected ? 1 : 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (warning == null ? color : warningColor)
+                              .withValues(alpha: isSelected ? 0.24 : 0.14),
+                          blurRadius: isSelected ? 22 : 14,
+                          offset: const Offset(0, 9),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: _PaperTexturePainter(
+                              lineColor: color.withValues(alpha: 0.28),
+                              edgeColor: color.withValues(alpha: 0.34),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 4,
+                            color: color.withValues(alpha: 0.34),
+                          ),
+                        ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            height: 2,
+                            color: AppColors.white.withValues(alpha: 0.36),
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.topLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                            child: SizedBox(
+                              height: 58,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 42,
+                                    height: 42,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.white.withValues(
+                                        alpha: 0.42,
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: AppColors.white.withValues(
+                                          alpha: 0.28,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      icon,
+                                      color: AppColors.forest,
+                                      size: 23,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          category,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: AppColors.ink,
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 5),
+                                        Text(
+                                          '$taskCount tugas - $pendingCount tertunda',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: warning == null
+                                                ? AppColors.muted
+                                                : warningColor,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (warning != null)
+                                    Container(
+                                      width: 26,
+                                      height: 26,
+                                      decoration: BoxDecoration(
+                                        color: warningColor,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: AppColors.white,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: const Center(
+                                        child: Text(
+                                          '!',
+                                          style: TextStyle(
+                                            color: AppColors.white,
+                                            fontWeight: FontWeight.w900,
+                                            height: 1,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    const Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: AppColors.muted,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: CustomPaint(
+                            size: const Size(34, 34),
+                            painter: _PaperFoldPainter(
+                              foldColor: Color.lerp(
+                                bodyColor,
+                                AppColors.white,
+                                0.28,
+                              )!,
+                              shadowColor: color.withValues(alpha: 0.18),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _PaperTexturePainter extends CustomPainter {
+  const _PaperTexturePainter({
+    required this.lineColor,
+    required this.edgeColor,
+  });
+
+  final Color lineColor;
+  final Color edgeColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final linePaint = Paint()
+      ..color = lineColor
+      ..strokeWidth = 1.25;
+    final edgePaint = Paint()
+      ..color = edgeColor
+      ..strokeWidth = 1.5;
+
+    for (var y = 36.0; y < size.height - 8; y += 26) {
+      canvas.drawLine(Offset(18, y), Offset(size.width - 18, y), linePaint);
+    }
+
+    canvas.drawLine(
+      Offset(0, size.height - 1),
+      Offset(size.width, size.height - 1),
+      edgePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _PaperTexturePainter oldDelegate) {
+    return oldDelegate.lineColor != lineColor ||
+        oldDelegate.edgeColor != edgeColor;
+  }
+}
+
+class _PaperFoldPainter extends CustomPainter {
+  const _PaperFoldPainter({required this.foldColor, required this.shadowColor});
+
+  final Color foldColor;
+  final Color shadowColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final foldPath = Path()
+      ..moveTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    final shadowPath = Path()
+      ..moveTo(size.width, 0)
+      ..lineTo(0, size.height)
+      ..lineTo(size.width, size.height)
+      ..close();
+
+    canvas.drawPath(shadowPath, Paint()..color = shadowColor);
+    canvas.drawPath(
+      foldPath,
+      Paint()..color = foldColor.withValues(alpha: 0.58),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _PaperFoldPainter oldDelegate) {
+    return oldDelegate.foldColor != foldColor ||
+        oldDelegate.shadowColor != shadowColor;
+  }
+}
+
 class ReorderableCategoryCard extends StatelessWidget {
   const ReorderableCategoryCard({
     super.key,
@@ -852,16 +1426,7 @@ class ReorderableCategoryCard extends StatelessWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final List<String> _categories = [
-    'Pribadi',
-    'Belajar',
-    'Sekolah',
-    'Belanja',
-    'Rumah',
-    'Ekskul',
-    'Hang Out',
-    'Simpan',
-  ];
+  final List<String> _categories = ['Pribadi', 'Belajar', 'Sekolah'];
 
   final Map<String, IconData> _categoryIcons = {
     'Pribadi': Icons.spa_rounded,
@@ -886,9 +1451,9 @@ class _HomePageState extends State<HomePage> {
   };
 
   final Map<String, Color> _categoryBadgeColors = {
-    'Pribadi': Color(0xFF7F5A68),
-    'Belajar': Color(0xFF4F6F68),
-    'Sekolah': Color(0xFF8A6F4D),
+    'Pribadi': Color(0xFFD9A1AD),
+    'Belajar': Color(0xFF93B4A8),
+    'Sekolah': Color(0xFFD4A25D),
     'Belanja': Color(0xFF6E5A7D),
     'Rumah': Color(0xFF89901D),
     'Ekskul': Color(0xFF6D604F),
@@ -899,8 +1464,8 @@ class _HomePageState extends State<HomePage> {
   int _nextId = 5;
   Timer? _deadlineAlertTimer;
   final Set<int> _alertedOverdueTaskIds = {};
-  String? _draggingCategory;
   bool _isCategoryStackExpanded = false;
+  String? _selectedStackCategory;
 
   final List<Task> _tasks = [
     Task(
@@ -926,9 +1491,9 @@ class _HomePageState extends State<HomePage> {
     ),
     Task(
       id: 4,
-      title: 'Beli sticky notes',
-      category: 'Belanja',
-      note: 'Pilih warna soft yellow atau cream.',
+      title: 'Siapkan perlengkapan kelas',
+      category: 'Sekolah',
+      note: 'Cek buku catatan dan alat tulis.',
       isDone: false,
     ),
   ];
@@ -940,16 +1505,26 @@ class _HomePageState extends State<HomePage> {
     return normalizedCategory != 'semua';
   }).toList();
 
+  Color _fallbackCategoryColor(String category) {
+    const colors = [
+      Color(0xFFD9A1AD),
+      Color(0xFF93B4A8),
+      Color(0xFFD4A25D),
+      Color(0xFFA899B5),
+      Color(0xFFB8C67A),
+      Color(0xFFC89B7F),
+      Color(0xFFA9A394),
+      Color(0xFF85A7BE),
+    ];
+    final index = category.codeUnits.fold<int>(
+      0,
+      (total, codeUnit) => total + codeUnit,
+    );
+    return colors[index % colors.length];
+  }
+
   IconData _categoryIcon(String category) {
     return _categoryIcons[category] ?? Icons.folder_rounded;
-  }
-
-  Color _categoryIconColor(String category) {
-    return _categoryIconColors[category] ?? const Color(0xFFD6E3CE);
-  }
-
-  Color _categoryBadgeColor(String category) {
-    return _categoryBadgeColors[category] ?? const Color(0xFF6F6458);
   }
 
   @override
@@ -1063,7 +1638,7 @@ class _HomePageState extends State<HomePage> {
     final result = await Navigator.of(context).push<TaskFormResult>(
       MaterialPageRoute(
         builder: (_) => TaskFormPage(
-          categories: _folderCategories,
+          categories: _categoryIcons.keys.toList(),
           categoryIcons: _categoryIcons,
           task: task,
         ),
@@ -1077,6 +1652,10 @@ class _HomePageState extends State<HomePage> {
         _categories.add(result.category);
       }
       _categoryIcons[result.category] = result.categoryIcon;
+      _categoryBadgeColors.putIfAbsent(
+        result.category,
+        () => _fallbackCategoryColor(result.category),
+      );
 
       if (task == null) {
         _tasks.insert(
@@ -1115,22 +1694,6 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
-  }
-
-  void _moveCategory({
-    required String draggedCategory,
-    required String targetCategory,
-  }) {
-    if (draggedCategory == targetCategory) return;
-
-    final oldIndex = _categories.indexOf(draggedCategory);
-    final targetIndex = _categories.indexOf(targetCategory);
-    if (oldIndex == -1 || targetIndex == -1) return;
-
-    setState(() {
-      final category = _categories.removeAt(oldIndex);
-      _categories.insert(targetIndex, category);
-    });
   }
 
   Future<String?> _editCategory(String category) async {
@@ -1473,115 +2036,31 @@ class _HomePageState extends State<HomePage> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(22, 0, 22, 100),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 360),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (child, animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SizeTransition(
-                        sizeFactor: animation,
-                        axisAlignment: -1,
-                        child: child,
-                      ),
-                    );
+                child: CategoryFolderSheetStack(
+                  categories: _folderCategories,
+                  selectedCategory: _selectedStackCategory,
+                  isExpanded: _isCategoryStackExpanded,
+                  folderColors: _categoryBadgeColors,
+                  iconForCategory: _categoryIcon,
+                  taskCountForCategory: (category) =>
+                      _tasksForCategory(category).length,
+                  doneCountForCategory: (category) => _tasksForCategory(
+                    category,
+                  ).where((task) => task.isDone).length,
+                  warningForCategory: (category) =>
+                      _deadlineWarningForCategory(_tasksForCategory(category)),
+                  onTapCategory: (category) {
+                    if (_isCategoryStackExpanded &&
+                        _selectedStackCategory == category) {
+                      _openCategory(category);
+                      return;
+                    }
+
+                    setState(() {
+                      _isCategoryStackExpanded = true;
+                      _selectedStackCategory = category;
+                    });
                   },
-                  child: _isCategoryStackExpanded
-                      ? Column(
-                          key: const ValueKey('expanded-folders'),
-                          children: [
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _isCategoryStackExpanded = false;
-                                  });
-                                },
-                                child: const Text('Satukan folder'),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: _folderCategories.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    mainAxisSpacing: 14,
-                                    crossAxisSpacing: 12,
-                                    childAspectRatio: 1.08,
-                                  ),
-                              itemBuilder: (context, index) {
-                                final category = _folderCategories[index];
-                                final tasks = _tasksForCategory(category);
-                                final warning = _deadlineWarningForCategory(
-                                  tasks,
-                                );
-                                return TweenAnimationBuilder<double>(
-                                  duration: Duration(
-                                    milliseconds: 260 + index * 45,
-                                  ),
-                                  curve: Curves.easeOutBack,
-                                  tween: Tween(begin: 0, end: 1),
-                                  builder: (context, value, child) {
-                                    return Transform.translate(
-                                      offset: Offset(0, (1 - value) * 22),
-                                      child: Transform.scale(
-                                        scale: 0.86 + value * 0.14,
-                                        child: Opacity(
-                                          opacity: value.clamp(0, 1),
-                                          child: child,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  child: ReorderableCategoryCard(
-                                    category: category,
-                                    icon: _categoryIcon(category),
-                                    iconColor: _categoryIconColor(category),
-                                    badgeColor: _categoryBadgeColor(category),
-                                    taskCount: tasks.length,
-                                    doneCount: tasks
-                                        .where((task) => task.isDone)
-                                        .length,
-                                    warning: warning,
-                                    isDragging: _draggingCategory == category,
-                                    onTap: () => _openCategory(category),
-                                    onMove: (draggedCategory) => _moveCategory(
-                                      draggedCategory: draggedCategory,
-                                      targetCategory: category,
-                                    ),
-                                    onDragStarted: () {
-                                      setState(() {
-                                        _draggingCategory = category;
-                                      });
-                                    },
-                                    onDragFinished: () {
-                                      if (_draggingCategory == null) return;
-                                      setState(() {
-                                        _draggingCategory = null;
-                                      });
-                                    },
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        )
-                      : CategoryFolderStackPreview(
-                          key: const ValueKey('collapsed-folders'),
-                          categories: _folderCategories,
-                          folderColors: _categoryBadgeColors,
-                          taskCount: _tasks.length,
-                          onTap: () {
-                            setState(() {
-                              _isCategoryStackExpanded = true;
-                            });
-                          },
-                        ),
                 ),
               ),
             ),
