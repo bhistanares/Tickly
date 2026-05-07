@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../theme/app_colors.dart';
 import 'category_tasks_page.dart';
+import 'profile_page.dart';
 import 'task_form_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -282,9 +283,10 @@ class CategoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final pendingCount = taskCount - doneCount;
     final hasDeadlineWarning = warningLabel != null;
+    final isOverdueWarning = hasDeadlineWarning && isWarningCritical;
     final warningColor = isWarningCritical
         ? const Color(0xFFC45E58)
-        : const Color(0xFFD36A4D);
+        : AppColors.forest;
 
     return InkWell(
       onTap: onTap,
@@ -295,20 +297,20 @@ class CategoryCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: hasDeadlineWarning
+              color: isOverdueWarning
                   ? const Color(0xFFFFE3DE)
                   : AppColors.white,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: hasDeadlineWarning ? warningColor : AppColors.line,
-                width: hasDeadlineWarning ? 1.6 : 1,
+                color: isOverdueWarning ? warningColor : AppColors.line,
+                width: isOverdueWarning ? 1.6 : 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: hasDeadlineWarning
+                  color: isOverdueWarning
                       ? warningColor.withValues(alpha: 0.26)
                       : const Color(0x145B4734),
-                  blurRadius: hasDeadlineWarning ? 20 : 16,
+                  blurRadius: isOverdueWarning ? 20 : 16,
                   offset: const Offset(0, 8),
                 ),
               ],
@@ -359,7 +361,7 @@ class CategoryCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: hasDeadlineWarning ? warningColor : AppColors.muted,
+                    color: isOverdueWarning ? warningColor : AppColors.muted,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -380,22 +382,30 @@ class CategoryCard extends StatelessWidget {
                   border: Border.all(color: AppColors.white, width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: warningColor.withValues(alpha: 0.42),
+                      color: warningColor.withValues(
+                        alpha: isOverdueWarning ? 0.42 : 0.2,
+                      ),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                child: const Center(
-                  child: Text(
-                    '!',
-                    style: TextStyle(
-                      color: AppColors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      height: 1,
-                    ),
-                  ),
+                child: Center(
+                  child: isOverdueWarning
+                      ? const Text(
+                          '!',
+                          style: TextStyle(
+                            color: AppColors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            height: 1,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.schedule_rounded,
+                          color: AppColors.cream,
+                          size: 14,
+                        ),
                 ),
               ),
             ),
@@ -413,6 +423,91 @@ class CategoryDeadlineWarning {
 
   final String label;
   final bool isCritical;
+}
+
+class CategoryViewSwitch extends StatelessWidget {
+  const CategoryViewSwitch({
+    super.key,
+    required this.showGrid,
+    required this.onChanged,
+  });
+
+  final bool showGrid;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget option({
+      required bool value,
+      required IconData icon,
+      required String label,
+    }) {
+      final selected = showGrid == value;
+
+      return InkWell(
+        onTap: () => onChanged(value),
+        borderRadius: BorderRadius.circular(13),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          width: 34,
+          height: 32,
+          decoration: BoxDecoration(
+            color: selected ? AppColors.olive : Colors.transparent,
+            borderRadius: BorderRadius.circular(13),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.olive.withValues(alpha: 0.22),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Tooltip(
+            message: label,
+            child: Icon(
+              icon,
+              size: 18,
+              color: selected ? AppColors.cream : AppColors.muted,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppColors.white.withValues(alpha: 0.84),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.line),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF5B4734).withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          option(
+            value: false,
+            icon: Icons.layers_rounded,
+            label: 'Tampilan lembaran',
+          ),
+          option(
+            value: true,
+            icon: Icons.grid_view_rounded,
+            label: 'Tampilan kotak',
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class CategoryFolderCard extends StatelessWidget {
@@ -443,9 +538,10 @@ class CategoryFolderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final pendingCount = taskCount - doneCount;
     final hasDeadlineWarning = warningLabel != null;
+    final isOverdueWarning = hasDeadlineWarning && isWarningCritical;
     final warningColor = isWarningCritical
         ? const Color(0xFFC45E58)
-        : const Color(0xFFD36A4D);
+        : AppColors.forest;
     final bodyColor = Color.lerp(folderColor, AppColors.white, 0.68)!;
 
     return InkWell(
@@ -464,13 +560,13 @@ class CategoryFolderCard extends StatelessWidget {
                 color: bodyColor,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: hasDeadlineWarning ? warningColor : AppColors.line,
-                  width: hasDeadlineWarning ? 1.6 : 1,
+                  color: isOverdueWarning ? warningColor : AppColors.line,
+                  width: isOverdueWarning ? 1.6 : 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: (hasDeadlineWarning ? warningColor : folderColor)
-                        .withValues(alpha: hasDeadlineWarning ? 0.22 : 0.18),
+                    color: (isOverdueWarning ? warningColor : folderColor)
+                        .withValues(alpha: isOverdueWarning ? 0.22 : 0.18),
                     blurRadius: 18,
                     offset: const Offset(0, 10),
                   ),
@@ -528,9 +624,7 @@ class CategoryFolderCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: hasDeadlineWarning
-                          ? warningColor
-                          : AppColors.muted,
+                      color: isOverdueWarning ? warningColor : AppColors.muted,
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
@@ -552,22 +646,30 @@ class CategoryFolderCard extends StatelessWidget {
                   border: Border.all(color: AppColors.white, width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: warningColor.withValues(alpha: 0.38),
+                      color: warningColor.withValues(
+                        alpha: isOverdueWarning ? 0.38 : 0.2,
+                      ),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                child: const Center(
-                  child: Text(
-                    '!',
-                    style: TextStyle(
-                      color: AppColors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      height: 1,
-                    ),
-                  ),
+                child: Center(
+                  child: isOverdueWarning
+                      ? const Text(
+                          '!',
+                          style: TextStyle(
+                            color: AppColors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            height: 1,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.schedule_rounded,
+                          color: AppColors.cream,
+                          size: 14,
+                        ),
                 ),
               ),
             ),
@@ -965,6 +1067,215 @@ class CategoryFolderSheetStack extends StatelessWidget {
   }
 }
 
+class DailyRewardOverlay extends StatelessWidget {
+  const DailyRewardOverlay({super.key, required this.completedToday});
+
+  final int completedToday;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: MediaQuery.of(context).size.height * 0.18,
+      right: -10,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 520),
+        curve: Curves.easeOutBack,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value.clamp(0.0, 1.0),
+            child: Transform.translate(
+              offset: Offset((1 - value) * 90, 0),
+              child: Transform.scale(scale: 0.9 + value * 0.1, child: child),
+            ),
+          );
+        },
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: 238,
+            padding: const EdgeInsets.fromLTRB(18, 16, 24, 16),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(28),
+                bottomLeft: Radius.circular(28),
+              ),
+              border: Border.all(color: AppColors.line),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x285B4734),
+                  blurRadius: 24,
+                  offset: Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.sage,
+                    borderRadius: BorderRadius.circular(17),
+                  ),
+                  child: const Icon(
+                    Icons.emoji_events_rounded,
+                    color: AppColors.olive,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Reward terbuka!',
+                        style: TextStyle(
+                          color: AppColors.ink,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '$completedToday tugas selesai hari ini',
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class TicklyBottomBar extends StatelessWidget {
+  const TicklyBottomBar({
+    super.key,
+    required this.onAdd,
+    required this.onProfile,
+  });
+
+  final VoidCallback onAdd;
+  final VoidCallback onProfile;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 0, 22, 14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.forest,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x285B4734),
+                blurRadius: 22,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              _BottomNavButton(
+                icon: Icons.home_rounded,
+                label: 'Home',
+                selected: true,
+                onTap: () {},
+              ),
+              const Spacer(),
+              FilledButton.icon(
+                onPressed: onAdd,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.olive,
+                  foregroundColor: AppColors.cream,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text(
+                  'Tambah',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+              const Spacer(),
+              _BottomNavButton(
+                icon: Icons.person_rounded,
+                label: 'Profil',
+                selected: false,
+                onTap: onProfile,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomNavButton extends StatelessWidget {
+  const _BottomNavButton({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: selected ? AppColors.gold : AppColors.cream,
+              size: 24,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppColors.gold : AppColors.cream,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class CategoryFolderSheet extends StatelessWidget {
   const CategoryFolderSheet({
     super.key,
@@ -994,9 +1305,10 @@ class CategoryFolderSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pendingCount = taskCount - doneCount;
-    final warningColor = (warning?.isCritical ?? false)
+    final isOverdueWarning = warning?.isCritical ?? false;
+    final warningColor = isOverdueWarning
         ? const Color(0xFFC45E58)
-        : const Color(0xFFD36A4D);
+        : AppColors.forest;
     final bodyColor = Color.lerp(color, AppColors.white, 0.34)!;
     final tabColor = Color.lerp(color, AppColors.white, 0.12)!;
 
@@ -1106,16 +1418,16 @@ class CategoryFolderSheet extends StatelessWidget {
                       ),
                       borderRadius: BorderRadius.zero,
                       border: Border.all(
-                        color: warning == null
-                            ? (isSelected
+                        color: isOverdueWarning
+                            ? warningColor
+                            : (isSelected
                                   ? AppColors.olive.withValues(alpha: 0.55)
-                                  : color.withValues(alpha: 0.18))
-                            : warningColor,
-                        width: warning == null && !isSelected ? 1 : 1.5,
+                                  : color.withValues(alpha: 0.18)),
+                        width: isOverdueWarning || isSelected ? 1.5 : 1,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: (warning == null ? color : warningColor)
+                          color: (isOverdueWarning ? warningColor : color)
                               .withValues(alpha: isSelected ? 0.24 : 0.14),
                           blurRadius: isSelected ? 22 : 14,
                           offset: const Offset(0, 9),
@@ -1202,9 +1514,9 @@ class CategoryFolderSheet extends StatelessWidget {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
-                                            color: warning == null
-                                                ? AppColors.muted
-                                                : warningColor,
+                                            color: isOverdueWarning
+                                                ? warningColor
+                                                : AppColors.muted,
                                             fontSize: 12,
                                             fontWeight: FontWeight.w800,
                                           ),
@@ -1224,15 +1536,21 @@ class CategoryFolderSheet extends StatelessWidget {
                                           width: 2,
                                         ),
                                       ),
-                                      child: const Center(
-                                        child: Text(
-                                          '!',
-                                          style: TextStyle(
-                                            color: AppColors.white,
-                                            fontWeight: FontWeight.w900,
-                                            height: 1,
-                                          ),
-                                        ),
+                                      child: Center(
+                                        child: isOverdueWarning
+                                            ? const Text(
+                                                '!',
+                                                style: TextStyle(
+                                                  color: AppColors.white,
+                                                  fontWeight: FontWeight.w900,
+                                                  height: 1,
+                                                ),
+                                              )
+                                            : const Icon(
+                                                Icons.schedule_rounded,
+                                                color: AppColors.cream,
+                                                size: 15,
+                                              ),
                                       ),
                                     )
                                   else
@@ -1462,9 +1780,13 @@ class _HomePageState extends State<HomePage> {
   };
 
   int _nextId = 5;
+  static const int _dailyTarget = 5;
   Timer? _deadlineAlertTimer;
   final Set<int> _alertedOverdueTaskIds = {};
+  final Set<String> _shownRewardDates = {};
   bool _isCategoryStackExpanded = false;
+  bool _showCategoryGrid = false;
+  bool _isOpeningTaskForm = false;
   String? _selectedStackCategory;
 
   final List<Task> _tasks = [
@@ -1500,6 +1822,13 @@ class _HomePageState extends State<HomePage> {
 
   int get _doneCount => _tasks.where((task) => task.isDone).length;
 
+  int get _completedTodayCount {
+    return _tasks.where((task) {
+      final completedAt = task.completedAt;
+      return task.isDone && completedAt != null && _isSameDay(completedAt);
+    }).length;
+  }
+
   List<String> get _folderCategories => _categories.where((category) {
     final normalizedCategory = category.toLowerCase();
     return normalizedCategory != 'semua';
@@ -1525,6 +1854,43 @@ class _HomePageState extends State<HomePage> {
 
   IconData _categoryIcon(String category) {
     return _categoryIcons[category] ?? Icons.folder_rounded;
+  }
+
+  bool _isSameDay(DateTime value, [DateTime? compareTo]) {
+    final date = compareTo ?? DateTime.now();
+    return value.year == date.year &&
+        value.month == date.month &&
+        value.day == date.day;
+  }
+
+  String _todayRewardKey() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month}-${now.day}';
+  }
+
+  void _showDailyReward(int completedToday) {
+    final overlay = Overlay.of(context);
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => DailyRewardOverlay(completedToday: completedToday),
+    );
+    overlay.insert(entry);
+    Future.delayed(const Duration(milliseconds: 2800), () {
+      entry.remove();
+    });
+  }
+
+  void _openProfile() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProfilePage(
+          completedToday: _completedTodayCount,
+          dailyTarget: _dailyTarget,
+          totalTasks: _tasks.length,
+          doneTasks: _doneCount,
+        ),
+      ),
+    );
   }
 
   @override
@@ -1635,26 +2001,35 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _openTaskForm({Task? task}) async {
-    final result = await Navigator.of(context).push<TaskFormResult>(
-      MaterialPageRoute(
-        builder: (_) => TaskFormPage(
-          categories: _categoryIcons.keys.toList(),
-          categoryIcons: _categoryIcons,
-          task: task,
+    if (_isOpeningTaskForm) return;
+    _isOpeningTaskForm = true;
+
+    final TaskFormResult? result;
+    try {
+      result = await Navigator.of(context).push<TaskFormResult>(
+        MaterialPageRoute(
+          builder: (_) => TaskFormPage(
+            categories: _categoryIcons.keys.toList(),
+            categoryIcons: _categoryIcons,
+            task: task,
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      _isOpeningTaskForm = false;
+    }
 
     if (result == null) return;
+    final taskResult = result;
 
     setState(() {
-      if (!_categories.contains(result.category)) {
-        _categories.add(result.category);
+      if (!_categories.contains(taskResult.category)) {
+        _categories.add(taskResult.category);
       }
-      _categoryIcons[result.category] = result.categoryIcon;
+      _categoryIcons[taskResult.category] = taskResult.categoryIcon;
       _categoryBadgeColors.putIfAbsent(
-        result.category,
-        () => _fallbackCategoryColor(result.category),
+        taskResult.category,
+        () => _fallbackCategoryColor(taskResult.category),
       );
 
       if (task == null) {
@@ -1662,19 +2037,19 @@ class _HomePageState extends State<HomePage> {
           0,
           Task(
             id: _nextId++,
-            title: result.title,
-            category: result.category,
-            note: result.note,
+            title: taskResult.title,
+            category: taskResult.category,
+            note: taskResult.note,
             isDone: false,
-            deadline: result.deadline,
+            deadline: taskResult.deadline,
           ),
         );
       } else {
         task
-          ..title = result.title
-          ..category = result.category
-          ..note = result.note
-          ..deadline = result.deadline;
+          ..title = taskResult.title
+          ..category = taskResult.category
+          ..note = taskResult.note
+          ..deadline = taskResult.deadline;
       }
     });
     _checkOverdueTasks();
@@ -1872,10 +2247,30 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _toggleTask(Task task) {
+    final beforeCompletedToday = _completedTodayCount;
+    final wasDone = task.isDone;
     setState(() {
       task.isDone = !task.isDone;
+      if (task.isDone) {
+        task.completedAt = DateTime.now();
+      } else {
+        task.completedAt = null;
+      }
     });
     _checkOverdueTasks();
+
+    final completedToday = _completedTodayCount;
+    final rewardKey = _todayRewardKey();
+    final reachedTarget =
+        !wasDone &&
+        beforeCompletedToday < _dailyTarget &&
+        completedToday >= _dailyTarget &&
+        !_shownRewardDates.contains(rewardKey);
+
+    if (reachedTarget) {
+      _shownRewardDates.add(rewardKey);
+      _showDailyReward(completedToday);
+    }
   }
 
   void _deleteTask(Task task) {
@@ -2027,6 +2422,19 @@ class _HomePageState extends State<HomePage> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        const SizedBox(width: 10),
+                        CategoryViewSwitch(
+                          showGrid: _showCategoryGrid,
+                          onChanged: (value) {
+                            setState(() {
+                              _showCategoryGrid = value;
+                              if (value) {
+                                _isCategoryStackExpanded = false;
+                                _selectedStackCategory = null;
+                              }
+                            });
+                          },
+                        ),
                       ],
                     ),
                   ],
@@ -2036,47 +2444,85 @@ class _HomePageState extends State<HomePage> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(22, 0, 22, 100),
-                child: CategoryFolderSheetStack(
-                  categories: _folderCategories,
-                  selectedCategory: _selectedStackCategory,
-                  isExpanded: _isCategoryStackExpanded,
-                  folderColors: _categoryBadgeColors,
-                  iconForCategory: _categoryIcon,
-                  taskCountForCategory: (category) =>
-                      _tasksForCategory(category).length,
-                  doneCountForCategory: (category) => _tasksForCategory(
-                    category,
-                  ).where((task) => task.isDone).length,
-                  warningForCategory: (category) =>
-                      _deadlineWarningForCategory(_tasksForCategory(category)),
-                  onTapCategory: (category) {
-                    if (_isCategoryStackExpanded &&
-                        _selectedStackCategory == category) {
-                      _openCategory(category);
-                      return;
-                    }
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 240),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  child: _showCategoryGrid
+                      ? GridView.builder(
+                          key: const ValueKey('category-grid-view'),
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _folderCategories.length,
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 14,
+                                mainAxisSpacing: 14,
+                                childAspectRatio: 1.15,
+                              ),
+                          itemBuilder: (context, index) {
+                            final category = _folderCategories[index];
+                            final tasks = _tasksForCategory(category);
+                            final warning = _deadlineWarningForCategory(tasks);
 
-                    setState(() {
-                      _isCategoryStackExpanded = true;
-                      _selectedStackCategory = category;
-                    });
-                  },
+                            return CategoryFolderCard(
+                              label: category,
+                              icon: _categoryIcon(category),
+                              iconColor:
+                                  _categoryIconColors[category] ??
+                                  AppColors.cream,
+                              folderColor:
+                                  _categoryBadgeColors[category] ??
+                                  _fallbackCategoryColor(category),
+                              taskCount: tasks.length,
+                              doneCount: tasks
+                                  .where((task) => task.isDone)
+                                  .length,
+                              warningLabel: warning?.label,
+                              isWarningCritical: warning?.isCritical ?? false,
+                              onTap: () => _openCategory(category),
+                            );
+                          },
+                        )
+                      : CategoryFolderSheetStack(
+                          key: const ValueKey('category-sheet-view'),
+                          categories: _folderCategories,
+                          selectedCategory: _selectedStackCategory,
+                          isExpanded: _isCategoryStackExpanded,
+                          folderColors: _categoryBadgeColors,
+                          iconForCategory: _categoryIcon,
+                          taskCountForCategory: (category) =>
+                              _tasksForCategory(category).length,
+                          doneCountForCategory: (category) => _tasksForCategory(
+                            category,
+                          ).where((task) => task.isDone).length,
+                          warningForCategory: (category) =>
+                              _deadlineWarningForCategory(
+                                _tasksForCategory(category),
+                              ),
+                          onTapCategory: (category) {
+                            if (_isCategoryStackExpanded &&
+                                _selectedStackCategory == category) {
+                              _openCategory(category);
+                              return;
+                            }
+
+                            setState(() {
+                              _isCategoryStackExpanded = true;
+                              _selectedStackCategory = category;
+                            });
+                          },
+                        ),
                 ),
               ),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openTaskForm(),
-        backgroundColor: AppColors.olive,
-        foregroundColor: AppColors.cream,
-        elevation: 4,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text(
-          'Tambah',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
+      bottomNavigationBar: TicklyBottomBar(
+        onAdd: () => _openTaskForm(),
+        onProfile: _openProfile,
       ),
     );
   }

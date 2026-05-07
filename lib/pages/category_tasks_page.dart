@@ -40,15 +40,26 @@ class TaskTile extends StatelessWidget {
     required this.onToggle,
     required this.onEdit,
     required this.onDelete,
+    this.onTogglePin,
+    this.showPinControls = false,
+    this.reorderIndex,
   });
 
   final Task task;
   final VoidCallback onToggle;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback? onTogglePin;
+  final bool showPinControls;
+  final int? reorderIndex;
 
   @override
   Widget build(BuildContext context) {
+    final isNearDeadline =
+        task.deadline != null &&
+        !task.isDone &&
+        !task.deadline!.isBefore(DateTime.now()) &&
+        task.deadline!.difference(DateTime.now()) <= const Duration(days: 2);
     final isOverdue =
         task.deadline != null &&
         !task.isDone &&
@@ -62,10 +73,14 @@ class TaskTile extends StatelessWidget {
         border: Border.all(
           color: isOverdue
               ? const Color(0xFFD86B62)
+              : task.isPinned && showPinControls && !task.isDone
+              ? AppColors.olive
               : task.isDone
               ? AppColors.sage
               : AppColors.line,
-          width: isOverdue ? 1.6 : 1,
+          width: isOverdue || (task.isPinned && showPinControls && !task.isDone)
+              ? 1.6
+              : 1,
         ),
         boxShadow: const [
           BoxShadow(
@@ -109,6 +124,22 @@ class TaskTile extends StatelessWidget {
               children: [
                 Row(
                   children: [
+                    if (task.isPinned && showPinControls && !task.isDone) ...[
+                      Container(
+                        width: 24,
+                        height: 24,
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.sage,
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: const Icon(
+                          Icons.push_pin_rounded,
+                          size: 14,
+                          color: AppColors.olive,
+                        ),
+                      ),
+                    ],
                     Flexible(
                       child: Text(
                         task.title,
@@ -165,6 +196,7 @@ class TaskTile extends StatelessWidget {
                       _DeadlineBadge(
                         deadline: task.deadline!,
                         isOverdue: isOverdue,
+                        isNearDeadline: isNearDeadline,
                       ),
                   ],
                 ),
@@ -175,11 +207,28 @@ class TaskTile extends StatelessWidget {
             color: AppColors.white,
             icon: const Icon(Icons.more_vert_rounded, color: AppColors.muted),
             onSelected: (value) {
+              if (value == 'pin') onTogglePin?.call();
               if (value == 'edit') onEdit();
               if (value == 'delete') onDelete();
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
+            itemBuilder: (context) => [
+              if (showPinControls && !task.isDone)
+                PopupMenuItem(
+                  value: 'pin',
+                  child: Row(
+                    children: [
+                      Icon(
+                        task.isPinned
+                            ? Icons.push_pin_outlined
+                            : Icons.push_pin_rounded,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(task.isPinned ? 'Lepas sematan' : 'Sematkan'),
+                    ],
+                  ),
+                ),
+              const PopupMenuItem(
                 value: 'edit',
                 child: Row(
                   children: [
@@ -189,7 +238,7 @@ class TaskTile extends StatelessWidget {
                   ],
                 ),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'delete',
                 child: Row(
                   children: [
@@ -201,6 +250,18 @@ class TaskTile extends StatelessWidget {
               ),
             ],
           ),
+          if (showPinControls && !task.isDone)
+            ReorderableDragStartListener(
+              index: reorderIndex ?? 0,
+              child: const Padding(
+                padding: EdgeInsets.only(top: 10, right: 4),
+                child: Icon(
+                  Icons.drag_indicator_rounded,
+                  color: AppColors.muted,
+                  size: 22,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -208,34 +269,42 @@ class TaskTile extends StatelessWidget {
 }
 
 class _DeadlineBadge extends StatelessWidget {
-  const _DeadlineBadge({required this.deadline, required this.isOverdue});
+  const _DeadlineBadge({
+    required this.deadline,
+    required this.isOverdue,
+    required this.isNearDeadline,
+  });
 
   final DateTime deadline;
   final bool isOverdue;
+  final bool isNearDeadline;
 
   @override
   Widget build(BuildContext context) {
+    final badgeColor = isOverdue
+        ? const Color(0xFFFFC7BF)
+        : AppColors.cream.withValues(alpha: 0.9);
+    final contentColor = isOverdue
+        ? const Color(0xFFC45E58)
+        : isNearDeadline
+        ? AppColors.forest
+        : AppColors.muted;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: isOverdue
-            ? const Color(0xFFFFC7BF)
-            : AppColors.cream.withValues(alpha: 0.9),
+        color: badgeColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.schedule_rounded,
-            size: 13,
-            color: isOverdue ? const Color(0xFFC45E58) : AppColors.muted,
-          ),
+          Icon(Icons.schedule_rounded, size: 13, color: contentColor),
           const SizedBox(width: 5),
           Text(
             isOverdue ? 'Terlambat' : _formatRelativeDeadline(deadline),
             style: TextStyle(
-              color: isOverdue ? const Color(0xFFC45E58) : AppColors.muted,
+              color: contentColor,
               fontSize: 12,
               fontWeight: FontWeight.w900,
             ),
@@ -333,6 +402,8 @@ class _CategoryTasksPageState extends State<CategoryTasksPage> {
       widget.onEditCategory != null &&
       widget.onDeleteCategory != null;
 
+  bool get _canReorderTasks => !widget.showAllTasks && !widget.showDoneOnly;
+
   @override
   void initState() {
     super.initState();
@@ -361,6 +432,80 @@ class _CategoryTasksPageState extends State<CategoryTasksPage> {
     }
 
     return _baseTasks.where((task) => !task.isDone).toList();
+  }
+
+  bool _isActiveCategoryTask(Task task) {
+    return !task.isDone && task.category == _category;
+  }
+
+  void _moveTaskToCategoryTop(Task task) {
+    widget.tasks.remove(task);
+    final insertIndex = widget.tasks.indexWhere(_isActiveCategoryTask);
+    widget.tasks.insert(
+      insertIndex == -1 ? widget.tasks.length : insertIndex,
+      task,
+    );
+  }
+
+  void _toggleTaskPin(Task task) {
+    setState(() {
+      task.isPinned = !task.isPinned;
+      if (task.isPinned) {
+        _moveTaskToCategoryTop(task);
+      } else {
+        widget.tasks.remove(task);
+        final firstUnpinnedIndex = widget.tasks.indexWhere(
+          (item) => _isActiveCategoryTask(item) && !item.isPinned,
+        );
+        widget.tasks.insert(
+          firstUnpinnedIndex == -1 ? widget.tasks.length : firstUnpinnedIndex,
+          task,
+        );
+      }
+    });
+  }
+
+  void _reorderTask(int oldIndex, int newIndex) {
+    if (!_canReorderTasks) return;
+
+    final visibleTasks = _tasks;
+    if (oldIndex < 0 || oldIndex >= visibleTasks.length) return;
+
+    if (newIndex > oldIndex) newIndex--;
+    final movedTask = visibleTasks[oldIndex];
+    final remainingVisibleTasks = List<Task>.of(visibleTasks)
+      ..removeAt(oldIndex);
+    final pinnedCount = visibleTasks.where((task) => task.isPinned).length;
+    final pinnedCountAfterMove = remainingVisibleTasks
+        .where((task) => task.isPinned)
+        .length;
+    final safeNewIndex =
+        (movedTask.isPinned
+                ? newIndex.clamp(0, pinnedCountAfterMove)
+                : newIndex.clamp(pinnedCount, remainingVisibleTasks.length))
+            .toInt();
+    final targetTask = safeNewIndex < remainingVisibleTasks.length
+        ? remainingVisibleTasks[safeNewIndex]
+        : null;
+
+    setState(() {
+      widget.tasks.remove(movedTask);
+
+      if (targetTask != null) {
+        final targetIndex = widget.tasks.indexOf(targetTask);
+        widget.tasks.insert(targetIndex, movedTask);
+        return;
+      }
+
+      var insertIndex = widget.tasks.length;
+      for (var index = widget.tasks.length - 1; index >= 0; index--) {
+        if (_isActiveCategoryTask(widget.tasks[index])) {
+          insertIndex = index + 1;
+          break;
+        }
+      }
+      widget.tasks.insert(insertIndex, movedTask);
+    });
   }
 
   void _openHistory() {
@@ -520,6 +665,62 @@ class _CategoryTasksPageState extends State<CategoryTasksPage> {
                 hasScrollBody: false,
                 child: EmptyState(),
               )
+            else if (_canReorderTasks)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 0, 22, 28),
+                  child: ReorderableListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    buildDefaultDragHandles: false,
+                    proxyDecorator: (child, index, animation) {
+                      return AnimatedBuilder(
+                        animation: animation,
+                        builder: (context, child) {
+                          final scale = 1 + animation.value * 0.03;
+                          return Transform.scale(
+                            scale: scale,
+                            child: Material(
+                              color: Colors.transparent,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: child,
+                      );
+                    },
+                    onReorder: _reorderTask,
+                    itemCount: tasks.length,
+                    itemBuilder: (context, index) {
+                      final task = tasks[index];
+                      return Padding(
+                        key: ValueKey(task.id),
+                        padding: EdgeInsets.only(
+                          bottom: index == tasks.length - 1 ? 0 : 12,
+                        ),
+                        child: TaskTile(
+                          task: task,
+                          showPinControls: true,
+                          reorderIndex: index,
+                          onTogglePin: () => _toggleTaskPin(task),
+                          onToggle: () {
+                            widget.onToggle(task);
+                            setState(() {});
+                          },
+                          onEdit: () async {
+                            await widget.onEdit(task);
+                            setState(() {});
+                          },
+                          onDelete: () {
+                            widget.onDelete(task);
+                            setState(() {});
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              )
             else
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(22, 0, 22, 28),
@@ -530,6 +731,7 @@ class _CategoryTasksPageState extends State<CategoryTasksPage> {
                     final task = tasks[index];
                     return TaskTile(
                       task: task,
+                      showPinControls: false,
                       onToggle: () {
                         widget.onToggle(task);
                         setState(() {});
