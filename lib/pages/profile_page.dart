@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../widgets/tickly_bottom_bar.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({
@@ -9,12 +10,14 @@ class ProfilePage extends StatelessWidget {
     required this.dailyTarget,
     required this.totalTasks,
     required this.doneTasks,
+    required this.onAdd,
   });
 
   final int completedToday;
   final int dailyTarget;
   final int totalTasks;
   final int doneTasks;
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -26,31 +29,16 @@ class ProfilePage extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 110),
           children: [
-            Row(
-              children: [
-                IconButton.filled(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.white,
-                    foregroundColor: AppColors.forest,
-                  ),
-                  icon: const Icon(Icons.arrow_back_rounded),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    'Profil',
-                    style: TextStyle(
-                      color: AppColors.ink,
-                      fontFamily: 'IrishGrover',
-                      fontSize: 34,
-                      height: 1,
-                    ),
-                  ),
-                ),
-              ],
+            const Text(
+              'Profil',
+              style: TextStyle(
+                color: AppColors.ink,
+                fontFamily: 'IrishGrover',
+                fontSize: 34,
+                height: 1,
+              ),
             ),
             const SizedBox(height: 24),
             Container(
@@ -168,6 +156,12 @@ class ProfilePage extends StatelessWidget {
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: TicklyBottomBar(
+        onAdd: onAdd,
+        onHome: () => Navigator.of(context).pop(),
+        onProfile: () {},
+        selectedIndex: 1,
       ),
     );
   }

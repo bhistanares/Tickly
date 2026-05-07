@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/task.dart';
 import '../theme/app_colors.dart';
+import '../widgets/tickly_bottom_bar.dart';
 import 'category_tasks_page.dart';
 import 'profile_page.dart';
 import 'task_form_page.dart';
@@ -1160,122 +1161,6 @@ class DailyRewardOverlay extends StatelessWidget {
   }
 }
 
-class TicklyBottomBar extends StatelessWidget {
-  const TicklyBottomBar({
-    super.key,
-    required this.onAdd,
-    required this.onProfile,
-  });
-
-  final VoidCallback onAdd;
-  final VoidCallback onProfile;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(22, 0, 22, 14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.forest,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x285B4734),
-                blurRadius: 22,
-                offset: Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              _BottomNavButton(
-                icon: Icons.home_rounded,
-                label: 'Home',
-                selected: true,
-                onTap: () {},
-              ),
-              const Spacer(),
-              FilledButton.icon(
-                onPressed: onAdd,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.olive,
-                  foregroundColor: AppColors.cream,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text(
-                  'Tambah',
-                  style: TextStyle(fontWeight: FontWeight.w900),
-                ),
-              ),
-              const Spacer(),
-              _BottomNavButton(
-                icon: Icons.person_rounded,
-                label: 'Profil',
-                selected: false,
-                onTap: onProfile,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomNavButton extends StatelessWidget {
-  const _BottomNavButton({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: selected ? AppColors.gold : AppColors.cream,
-              size: 24,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected ? AppColors.gold : AppColors.cream,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class CategoryFolderSheet extends StatelessWidget {
   const CategoryFolderSheet({
     super.key,
@@ -1787,6 +1672,7 @@ class _HomePageState extends State<HomePage> {
   bool _isCategoryStackExpanded = false;
   bool _showCategoryGrid = false;
   bool _isOpeningTaskForm = false;
+  int _selectedBottomIndex = 0;
   String? _selectedStackCategory;
 
   final List<Task> _tasks = [
@@ -1881,16 +1767,69 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openProfile() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ProfilePage(
-          completedToday: _completedTodayCount,
-          dailyTarget: _dailyTarget,
-          totalTasks: _tasks.length,
-          doneTasks: _doneCount,
-        ),
-      ),
-    );
+    setState(() {
+      _selectedBottomIndex = 1;
+    });
+
+    Navigator.of(context)
+        .push(
+          PageRouteBuilder<void>(
+            transitionDuration: const Duration(milliseconds: 420),
+            reverseTransitionDuration: const Duration(milliseconds: 320),
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                ProfilePage(
+                  completedToday: _completedTodayCount,
+                  dailyTarget: _dailyTarget,
+                  totalTasks: _tasks.length,
+                  doneTasks: _doneCount,
+                  onAdd: () => _openTaskForm(),
+                ),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  final fadeAnimation = CurvedAnimation(
+                    parent: animation,
+                    curve: const Interval(0.08, 1, curve: Curves.easeOut),
+                    reverseCurve: Curves.easeIn,
+                  );
+                  final offsetAnimation =
+                      Tween<Offset>(
+                        begin: const Offset(0, 0.035),
+                        end: Offset.zero,
+                      ).animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOutCubic,
+                          reverseCurve: Curves.easeInCubic,
+                        ),
+                      );
+                  final scaleAnimation = Tween<double>(begin: 0.985, end: 1)
+                      .animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOutCubic,
+                          reverseCurve: Curves.easeInCubic,
+                        ),
+                      );
+
+                  return FadeTransition(
+                    opacity: fadeAnimation,
+                    child: SlideTransition(
+                      position: offsetAnimation,
+                      child: ScaleTransition(
+                        scale: scaleAnimation,
+                        child: child,
+                      ),
+                    ),
+                  );
+                },
+          ),
+        )
+        .then((_) {
+          if (!mounted) return;
+          setState(() {
+            _selectedBottomIndex = 0;
+          });
+        });
   }
 
   @override
@@ -2522,7 +2461,13 @@ class _HomePageState extends State<HomePage> {
       ),
       bottomNavigationBar: TicklyBottomBar(
         onAdd: () => _openTaskForm(),
+        onHome: () {
+          setState(() {
+            _selectedBottomIndex = 0;
+          });
+        },
         onProfile: _openProfile,
+        selectedIndex: _selectedBottomIndex,
       ),
     );
   }
