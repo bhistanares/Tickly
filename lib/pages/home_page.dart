@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -1068,96 +1069,247 @@ class CategoryFolderSheetStack extends StatelessWidget {
   }
 }
 
-class DailyRewardOverlay extends StatelessWidget {
-  const DailyRewardOverlay({super.key, required this.completedToday});
+class DailyRewardOverlay extends StatefulWidget {
+  const DailyRewardOverlay({super.key});
 
-  final int completedToday;
+  @override
+  State<DailyRewardOverlay> createState() => _DailyRewardOverlayState();
+}
+
+class _DailyRewardOverlayState extends State<DailyRewardOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final List<_ConfettiPiece> _pieces;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    )..forward();
+    _pieces = _buildConfettiPieces();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  List<_ConfettiPiece> _buildConfettiPieces() {
+    final random = math.Random(12);
+    const colors = [
+      Color(0xFFD9A1AD),
+      Color(0xFF93B4A8),
+      Color(0xFFD4A25D),
+      Color(0xFF6E5A7D),
+      Color(0xFF89901D),
+      Color(0xFFC89B7F),
+      Color(0xFF85A7BE),
+      Color(0xFFFFD1C8),
+    ];
+
+    return List.generate(82, (index) {
+      final side = index.isEven ? -1.0 : 1.0;
+      return _ConfettiPiece(
+        startX: 0.42 + random.nextDouble() * 0.16,
+        drift: side * (0.18 + random.nextDouble() * 0.34),
+        fall: 0.48 + random.nextDouble() * 0.42,
+        delay: random.nextDouble() * 0.28,
+        size: 5 + random.nextDouble() * 8,
+        spin: (random.nextDouble() * 2 - 1) * math.pi * 2.8,
+        color: colors[index % colors.length],
+        shape: index % 3,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
-      top: MediaQuery.of(context).size.height * 0.18,
-      right: -10,
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: 1),
-        duration: const Duration(milliseconds: 520),
-        curve: Curves.easeOutBack,
-        builder: (context, value, child) {
-          return Opacity(
-            opacity: value.clamp(0.0, 1.0),
-            child: Transform.translate(
-              offset: Offset((1 - value) * 90, 0),
-              child: Transform.scale(scale: 0.9 + value * 0.1, child: child),
-            ),
-          );
-        },
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            width: 238,
-            padding: const EdgeInsets.fromLTRB(18, 16, 24, 16),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(28),
-                bottomLeft: Radius.circular(28),
-              ),
-              border: Border.all(color: AppColors.line),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x285B4734),
-                  blurRadius: 24,
-                  offset: Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Row(
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            final value = _controller.value;
+            final messageOpacity = value < 0.78
+                ? Curves.easeOut.transform((value / 0.22).clamp(0.0, 1.0))
+                : Curves.easeIn.transform(((1 - value) / 0.22).clamp(0.0, 1.0));
+            final backgroundOpacity = value < 0.78
+                ? Curves.easeOut.transform((value / 0.18).clamp(0.0, 1.0))
+                : Curves.easeIn.transform(((1 - value) / 0.22).clamp(0.0, 1.0));
+
+            return Stack(
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.sage,
-                    borderRadius: BorderRadius.circular(17),
-                  ),
-                  child: const Icon(
-                    Icons.emoji_events_rounded,
-                    color: AppColors.olive,
-                    size: 28,
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: AppColors.ink.withValues(
+                      alpha: 0.68 * backgroundOpacity,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Reward terbuka!',
-                        style: TextStyle(
-                          color: AppColors.ink,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
+                CustomPaint(
+                  painter: _ConfettiPainter(progress: value, pieces: _pieces),
+                  size: Size.infinite,
+                ),
+                Align(
+                  alignment: const Alignment(0, -0.18),
+                  child: Opacity(
+                    opacity: messageOpacity,
+                    child: Transform.scale(
+                      scale: 0.88 + (0.12 * messageOpacity),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: Container(
+                          width: 250,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 15,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.white,
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(color: AppColors.line),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x285B4734),
+                                blurRadius: 24,
+                                offset: Offset(0, 12),
+                              ),
+                            ],
+                          ),
+                          child: const Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.celebration_rounded,
+                                color: AppColors.olive,
+                                size: 30,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Kamu keren!',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: AppColors.ink,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              SizedBox(height: 3),
+                              Text(
+                                '5 tugas sudah terselesaikan.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: AppColors.muted,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '$completedToday tugas selesai hari ini',
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ],
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
+  }
+}
+
+class _ConfettiPiece {
+  const _ConfettiPiece({
+    required this.startX,
+    required this.drift,
+    required this.fall,
+    required this.delay,
+    required this.size,
+    required this.spin,
+    required this.color,
+    required this.shape,
+  });
+
+  final double startX;
+  final double drift;
+  final double fall;
+  final double delay;
+  final double size;
+  final double spin;
+  final Color color;
+  final int shape;
+}
+
+class _ConfettiPainter extends CustomPainter {
+  const _ConfettiPainter({required this.progress, required this.pieces});
+
+  final double progress;
+  final List<_ConfettiPiece> pieces;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    final centerY = size.height * 0.32;
+
+    for (final piece in pieces) {
+      final localProgress = ((progress - piece.delay) / (1 - piece.delay))
+          .clamp(0.0, 1.0);
+      if (localProgress <= 0) continue;
+
+      final eased = Curves.easeOutCubic.transform(localProgress);
+      final fall = Curves.easeIn.transform(localProgress);
+      final opacity = localProgress < 0.72
+          ? 1.0
+          : ((1 - localProgress) / 0.28).clamp(0.0, 1.0);
+      final x =
+          (piece.startX * size.width) +
+          (piece.drift * size.width * eased) +
+          math.sin(localProgress * math.pi * 4) * 14;
+      final y =
+          centerY -
+          (size.height * 0.18 * (1 - eased)) +
+          (piece.fall * size.height * fall);
+
+      paint.color = piece.color.withValues(alpha: opacity);
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(piece.spin * localProgress);
+
+      if (piece.shape == 0) {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: Offset.zero,
+              width: piece.size * 0.8,
+              height: piece.size * 1.6,
+            ),
+            const Radius.circular(2),
+          ),
+          paint,
+        );
+      } else if (piece.shape == 1) {
+        canvas.drawCircle(Offset.zero, piece.size * 0.45, paint);
+      } else {
+        final path = Path()
+          ..moveTo(0, -piece.size * 0.7)
+          ..lineTo(piece.size * 0.7, piece.size * 0.55)
+          ..lineTo(-piece.size * 0.7, piece.size * 0.55)
+          ..close();
+        canvas.drawPath(path, paint);
+      }
+
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiPainter oldDelegate) {
+    return oldDelegate.progress != progress || oldDelegate.pieces != pieces;
   }
 }
 
@@ -1668,7 +1820,6 @@ class _HomePageState extends State<HomePage> {
   static const int _dailyTarget = 5;
   Timer? _deadlineAlertTimer;
   final Set<int> _alertedOverdueTaskIds = {};
-  final Set<String> _shownRewardDates = {};
   bool _isCategoryStackExpanded = false;
   bool _showCategoryGrid = false;
   bool _isOpeningTaskForm = false;
@@ -1749,17 +1900,10 @@ class _HomePageState extends State<HomePage> {
         value.day == date.day;
   }
 
-  String _todayRewardKey() {
-    final now = DateTime.now();
-    return '${now.year}-${now.month}-${now.day}';
-  }
-
-  void _showDailyReward(int completedToday) {
+  void _showDailyReward() {
     final overlay = Overlay.of(context);
     late final OverlayEntry entry;
-    entry = OverlayEntry(
-      builder: (_) => DailyRewardOverlay(completedToday: completedToday),
-    );
+    entry = OverlayEntry(builder: (_) => const DailyRewardOverlay());
     overlay.insert(entry);
     Future.delayed(const Duration(milliseconds: 2800), () {
       entry.remove();
@@ -2199,16 +2343,14 @@ class _HomePageState extends State<HomePage> {
     _checkOverdueTasks();
 
     final completedToday = _completedTodayCount;
-    final rewardKey = _todayRewardKey();
     final reachedTarget =
         !wasDone &&
-        beforeCompletedToday < _dailyTarget &&
-        completedToday >= _dailyTarget &&
-        !_shownRewardDates.contains(rewardKey);
+        completedToday > 0 &&
+        completedToday % _dailyTarget == 0 &&
+        beforeCompletedToday ~/ _dailyTarget < completedToday ~/ _dailyTarget;
 
     if (reachedTarget) {
-      _shownRewardDates.add(rewardKey);
-      _showDailyReward(completedToday);
+      _showDailyReward();
     }
   }
 
