@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/task.dart';
+import '../models/user_credentials.dart';
 import '../theme/app_colors.dart';
 import '../widgets/tickly_bottom_bar.dart';
 import 'category_tasks_page.dart';
@@ -11,7 +12,9 @@ import 'profile_page.dart';
 import 'task_form_page.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.initialCredentials});
+
+  final UserCredentials? initialCredentials;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -1825,6 +1828,7 @@ class _HomePageState extends State<HomePage> {
   bool _isOpeningTaskForm = false;
   int _selectedBottomIndex = 0;
   String? _selectedStackCategory;
+  late UserCredentials _credentials;
 
   final List<Task> _tasks = [
     Task(
@@ -1926,6 +1930,12 @@ class _HomePageState extends State<HomePage> {
                   dailyTarget: _dailyTarget,
                   totalTasks: _tasks.length,
                   doneTasks: _doneCount,
+                  credentials: _credentials,
+                  onCredentialsChanged: (credentials) {
+                    setState(() {
+                      _credentials = credentials;
+                    });
+                  },
                   onAdd: () => _openTaskForm(),
                 ),
             transitionsBuilder:
@@ -1979,6 +1989,14 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _credentials =
+        widget.initialCredentials ??
+        const UserCredentials(
+          username: 'hyu_tickly',
+          email: 'hyu@email.com',
+          password: 'tickly123',
+          signInMethod: SignInMethod.username,
+        );
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkOverdueTasks());
     _deadlineAlertTimer = Timer.periodic(const Duration(seconds: 20), (_) {
       if (mounted) setState(() {});

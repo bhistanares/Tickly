@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../models/user_credentials.dart';
 import '../theme/app_colors.dart';
+import '../widgets/tickly_logo_mark.dart';
 import 'home_page.dart';
 
 class AuthPage extends StatefulWidget {
@@ -38,7 +40,16 @@ class _AuthPageState extends State<AuthPage> {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (_, animation, __) => const HomePage(),
+          pageBuilder: (_, animation, __) => HomePage(
+            initialCredentials: UserCredentials(
+              username: _nameController.text.trim(),
+              email: _emailController.text.trim(),
+              password: _passwordController.text,
+              signInMethod: _useEmail || _isSignUp
+                  ? SignInMethod.email
+                  : SignInMethod.username,
+            ),
+          ),
           transitionDuration: const Duration(milliseconds: 520),
           transitionsBuilder: (_, animation, __, child) {
             final curved = CurvedAnimation(
@@ -328,26 +339,7 @@ class _AuthHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFF0B865), Color(0xFF74411F)],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: const [
-                BoxShadow(color: Color(0x55D7C733), blurRadius: 18),
-              ],
-            ),
-            child: const Icon(
-              Icons.fact_check_rounded,
-              color: Color(0xFFFFF0DB),
-              size: 34,
-            ),
-          ),
+          const TicklyLogoMark(size: 64),
           const SizedBox(width: 14),
           const Expanded(
             child: Column(
