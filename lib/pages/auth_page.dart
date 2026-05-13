@@ -19,7 +19,7 @@ class _AuthPageState extends State<AuthPage> {
   final _passwordController = TextEditingController();
 
   bool _isSignUp = false;
-  bool _useEmail = false;
+  bool _useEmail = true;
   bool _obscurePassword = true;
   bool _rememberMe = true;
   bool _isSubmitting = false;
@@ -35,6 +35,10 @@ class _AuthPageState extends State<AuthPage> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
+    final email = _emailController.text.trim();
+    final username = _nameController.text.trim();
+    final usesEmail = _useEmail || _isSignUp;
+
     setState(() => _isSubmitting = true);
     Future.delayed(const Duration(milliseconds: 520), () {
       if (!mounted) return;
@@ -42,10 +46,14 @@ class _AuthPageState extends State<AuthPage> {
         PageRouteBuilder(
           pageBuilder: (_, animation, __) => HomePage(
             initialCredentials: UserCredentials(
-              username: _nameController.text.trim(),
-              email: _emailController.text.trim(),
+              username: username.isNotEmpty
+                  ? username
+                  : usesEmail
+                  ? email.split('@').first
+                  : username,
+              email: email,
               password: _passwordController.text,
-              signInMethod: _useEmail || _isSignUp
+              signInMethod: usesEmail
                   ? SignInMethod.email
                   : SignInMethod.username,
             ),

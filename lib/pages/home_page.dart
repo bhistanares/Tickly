@@ -21,12 +21,15 @@ class HomePage extends StatefulWidget {
 }
 
 class Header extends StatelessWidget {
-  const Header({super.key, required this.date});
+  const Header({super.key, required this.date, required this.username});
 
   final String date;
+  final String username;
 
   @override
   Widget build(BuildContext context) {
+    final displayName = username.trim().isEmpty ? 'Tickly' : username.trim();
+
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Row(
@@ -36,13 +39,13 @@ class Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const FittedBox(
+                FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Hello, Hyu!',
+                    'Hello, $displayName!',
                     maxLines: 1,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppColors.ink,
                       fontFamily: 'IrishGrover',
                       fontSize: 28,
@@ -1930,6 +1933,7 @@ class _HomePageState extends State<HomePage> {
                   dailyTarget: _dailyTarget,
                   totalTasks: _tasks.length,
                   doneTasks: _doneCount,
+                  tasks: _tasks,
                   credentials: _credentials,
                   onCredentialsChanged: (credentials) {
                     setState(() {
@@ -2429,7 +2433,10 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Header(date: _formattedDate()),
+                    Header(
+                      date: _formattedDate(),
+                      username: _credentials.username,
+                    ),
                     const SizedBox(height: 34),
                     Row(
                       children: [

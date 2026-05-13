@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/task.dart';
 import '../models/user_credentials.dart';
 import '../theme/app_colors.dart';
 import '../widgets/tickly_bottom_bar.dart';
@@ -11,6 +12,7 @@ class ProfilePage extends StatefulWidget {
     required this.dailyTarget,
     required this.totalTasks,
     required this.doneTasks,
+    required this.tasks,
     required this.credentials,
     required this.onCredentialsChanged,
     required this.onAdd,
@@ -20,6 +22,7 @@ class ProfilePage extends StatefulWidget {
   final int dailyTarget;
   final int totalTasks;
   final int doneTasks;
+  final List<Task> tasks;
   final UserCredentials credentials;
   final ValueChanged<UserCredentials> onCredentialsChanged;
   final VoidCallback onAdd;
@@ -29,6 +32,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  final _formKey = GlobalKey<FormState>();
   late final TextEditingController _usernameController;
   late final TextEditingController _emailController;
   late final TextEditingController _passwordController;
@@ -55,11 +59,13 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _saveCredentials() {
+    if (!_formKey.currentState!.validate()) return;
+
     final credentials = UserCredentials(
       username: _usernameController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text,
-      signInMethod: widget.credentials.signInMethod,
+      signInMethod: SignInMethod.email,
     );
 
     widget.onCredentialsChanged(credentials);
@@ -81,16 +87,7 @@ class _ProfilePageState extends State<ProfilePage> {
       0,
       widget.dailyTarget,
     );
-    final signInMethod = widget.credentials.signInMethod;
-    final identifierController = signInMethod == SignInMethod.email
-        ? _emailController
-        : _usernameController;
-    final identifierLabel = signInMethod == SignInMethod.email
-        ? 'Email'
-        : 'Username';
-    final identifierIcon = signInMethod == SignInMethod.email
-        ? Icons.mail_rounded
-        : Icons.person_rounded;
+    final priorityTasks = _priorityTasks();
 
     return Scaffold(
       body: SafeArea(
@@ -130,31 +127,45 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  _ProfileTextField(
-                    controller: identifierController,
-                    label: identifierLabel,
-                    icon: identifierIcon,
-                    keyboardType: signInMethod == SignInMethod.email
-                        ? TextInputType.emailAddress
-                        : TextInputType.text,
-                  ),
-                  const SizedBox(height: 14),
-                  _ProfileTextField(
-                    controller: _passwordController,
-                    label: 'Password',
-                    icon: Icons.lock_rounded,
-                    obscureText: _obscurePassword,
-                    suffixIcon: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_rounded
-                            : Icons.visibility_off_rounded,
-                      ),
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        _ProfileTextField(
+                          controller: _usernameController,
+                          label: 'Username',
+                          icon: Icons.person_rounded,
+                          validator: _validateUsername,
+                        ),
+                        const SizedBox(height: 14),
+                        _ProfileTextField(
+                          controller: _emailController,
+                          label: 'Email',
+                          icon: Icons.mail_rounded,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: _validateEmail,
+                        ),
+                        const SizedBox(height: 14),
+                        _ProfileTextField(
+                          controller: _passwordController,
+                          label: 'Password',
+                          icon: Icons.lock_rounded,
+                          obscureText: _obscurePassword,
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_rounded
+                                  : Icons.visibility_off_rounded,
+                            ),
+                          ),
+                          validator: _validatePassword,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 18),
@@ -262,6 +273,8 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 16),
+            _PrioritySection(tasks: priorityTasks),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -292,6 +305,66 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+
+  String? _validateUsername(String? value) {
+    final username = value?.trim() ?? '';
+    if (username.isEmpty) {
+      return widget.credentials.signInMethod == SignInMethod.username
+          ? 'Username wajib diisi'
+          : null;
+    }
+    if (username.length < 3) return 'Minimal 3 karakter';
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    final email = value?.trim() ?? '';
+    if (email.isEmpty) return 'Email wajib diisi';
+    if (!email.contains('@') || !email.contains('.')) {
+      return 'Format email belum valid';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) return 'Password wajib diisi';
+    if (value.length < 6) return 'Minimal 6 karakter';
+    return null;
+  }
+
+  List<Task> _priorityTasks() {
+    final tasks = widget.tasks.where((task) => !task.isDone).toList();
+    tasks.sort((first, second) {
+      final firstScore = _priorityScore(first);
+      final secondScore = _priorityScore(second);
+      if (firstScore != secondScore) return firstScore.compareTo(secondScore);
+
+      final firstDeadline = first.deadline;
+      final secondDeadline = second.deadline;
+      if (firstDeadline != null && secondDeadline != null) {
+        return firstDeadline.compareTo(secondDeadline);
+      }
+      if (firstDeadline != null) return -1;
+      if (secondDeadline != null) return 1;
+
+      return first.id.compareTo(second.id);
+    });
+
+    return tasks.take(3).toList();
+  }
+
+  int _priorityScore(Task task) {
+    final deadline = task.deadline;
+    if (deadline == null) return task.isPinned ? 30 : 40;
+    if (deadline.isBefore(DateTime.now())) return 0;
+    if (deadline.difference(DateTime.now()) <= const Duration(days: 1)) {
+      return 10;
+    }
+    if (deadline.difference(DateTime.now()) <= const Duration(days: 2)) {
+      return 20;
+    }
+    return task.isPinned ? 25 : 35;
+  }
 }
 
 class _ProfileSection extends StatelessWidget {
@@ -320,6 +393,216 @@ class _ProfileSection extends StatelessWidget {
   }
 }
 
+class _PrioritySection extends StatelessWidget {
+  const _PrioritySection({required this.tasks});
+
+  final List<Task> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ProfileSection(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.blush,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.priority_high_rounded,
+                  color: Color(0xFFC45E58),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Skala Prioritas',
+                      style: TextStyle(
+                        color: AppColors.ink,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Tugas yang sebaiknya dikerjakan dulu.',
+                      style: TextStyle(
+                        color: AppColors.muted,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          if (tasks.isEmpty)
+            const _PriorityEmptyState()
+          else
+            for (var index = 0; index < tasks.length; index++) ...[
+              _PriorityTaskTile(task: tasks[index], rank: index + 1),
+              if (index != tasks.length - 1) const SizedBox(height: 10),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PriorityEmptyState extends StatelessWidget {
+  const _PriorityEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cream,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: const Text(
+        'Tidak ada tugas tertunda. Semua sudah beres.',
+        style: TextStyle(
+          color: AppColors.muted,
+          height: 1.35,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _PriorityTaskTile extends StatelessWidget {
+  const _PriorityTaskTile({required this.task, required this.rank});
+
+  final Task task;
+  final int rank;
+
+  @override
+  Widget build(BuildContext context) {
+    final deadline = task.deadline;
+    final status = _priorityStatus(deadline);
+    final statusColor = _priorityColor(deadline);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.cream,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: statusColor.withValues(alpha: 0.46)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: statusColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Text(
+                rank.toString(),
+                style: const TextStyle(
+                  color: AppColors.cream,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${task.category} • $status',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _priorityStatus(DateTime? deadline) {
+    if (deadline == null) return 'Belum ada deadline';
+
+    final now = DateTime.now();
+    if (deadline.isBefore(now)) return 'Terlambat';
+    if (_isSameDay(deadline, now)) return 'Deadline hari ini';
+    if (_isSameDay(deadline, now.add(const Duration(days: 1)))) {
+      return 'Deadline besok';
+    }
+
+    return 'Deadline ${_formatDate(deadline)}';
+  }
+
+  Color _priorityColor(DateTime? deadline) {
+    if (deadline == null) return AppColors.forest;
+
+    final remaining = deadline.difference(DateTime.now());
+    if (remaining.isNegative) return const Color(0xFFC45E58);
+    if (remaining <= const Duration(days: 1)) return const Color(0xFFD58B2A);
+    return AppColors.olive;
+  }
+
+  bool _isSameDay(DateTime first, DateTime second) {
+    return first.year == second.year &&
+        first.month == second.month &&
+        first.day == second.day;
+  }
+
+  String _formatDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
+    return '${date.day} ${months[date.month - 1]}';
+  }
+}
+
 class _ProfileTextField extends StatelessWidget {
   const _ProfileTextField({
     required this.controller,
@@ -328,6 +611,7 @@ class _ProfileTextField extends StatelessWidget {
     this.keyboardType,
     this.obscureText = false,
     this.suffixIcon,
+    required this.validator,
   });
 
   final TextEditingController controller;
@@ -336,6 +620,7 @@ class _ProfileTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final bool obscureText;
   final Widget? suffixIcon;
+  final String? Function(String?) validator;
 
   @override
   Widget build(BuildContext context) {
@@ -350,10 +635,11 @@ class _ProfileTextField extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
+        TextFormField(
           controller: controller,
           keyboardType: keyboardType,
           obscureText: obscureText,
+          validator: validator,
           decoration: InputDecoration(
             prefixIcon: Icon(icon, color: AppColors.forest),
             suffixIcon: suffixIcon,
@@ -370,6 +656,17 @@ class _ProfileTextField extends StatelessWidget {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(18),
               borderSide: const BorderSide(color: AppColors.olive, width: 1.4),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: const BorderSide(color: Color(0xFFC65F58)),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: const BorderSide(
+                color: Color(0xFFC65F58),
+                width: 1.4,
+              ),
             ),
           ),
         ),
